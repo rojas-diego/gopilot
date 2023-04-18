@@ -1,0 +1,9 @@
+# MacOS
+.DS_Store
+
+# Environment
+.env
+.neptune-config
+
+# Python
+**/__pycache__

@@ -1,0 +1,12 @@
+channels:
+  - "pytorch"
+  - "conda-forge"
+dependencies:
+  - python==3.10
+  - pytorch==2.0.0
+  - torchtext==0.15.0
+  - portalocker==2.7.0
+  - tiktoken=0.3.3
+  - neptune==1.0.2
+  - tqdm==4.65.0
+  - python-dotenv==1.0.0
