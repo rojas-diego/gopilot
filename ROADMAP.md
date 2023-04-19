@@ -1,41 +1,5 @@
 # Roadmap
 
-## Review Project
-
-### 1. Plan
-
-- [ ] Make a list of papers and topics we are interested in
-- [ ] Draw an outline for our research review
-
-### 2. Outline
-
-- [ ] Background
-  - [ ] LLMs and Transformers
-  - [ ] LLMs for Code Generation & Program synthesis
-- [ ] Techniques and State of the Art
-  - [ ] Fine-tuning on handmade datasets
-  - [ ] GPT-4, Github Copilot, Codex
-  - [ ] The Scaling Laws of Code LLMs
-- [ ] Ethics and LLM Monopoly
-  - [ ] Code Licensing and ownership
-  - [ ] The cost of training these models
-  - [ ] Lack of transparency around the training of large models
-  - [ ] Personal information leakage
-  - [ ] Citing sources
-- [ ] Future Directions
-  - [ ] End of LLM era?
-  - [ ] Scaling models down
-
-### 3. Write and Review
-
-- [ ] 🤓
-
-### 4. Project
-
-- [ ] Include a second part to the report to discuss the findings of the Research Project
-
-## Research Project
-
 ### 1. Experiment (1 day)
 
 - [ ] Read up on Language Modeling and the related techniques
