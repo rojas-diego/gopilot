@@ -1,5 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from queue import SimpleQueue
+import sys
+from threading import Event, Semaphore, Thread
 from typing import Callable, Iterable, Tuple
 
 import torch
@@ -36,52 +38,87 @@ class StreamDataLoader:
         self.max_sequence_len = max_sequence_len
         self.buffer_size = buffer_size
         self.data_queue = SimpleQueue()
+        self.stop_event = Event()
+        self.buffer_semaphore = Semaphore(buffer_size)
 
-        # Start the data loading thread
-        self.executor = ThreadPoolExecutor(max_workers=1)
-        self.data_loading_future = self.executor.submit(self._data_loading_loop)
+        self.executor = None
 
-    def _process_sequence(self, sequence: str) -> Tuple[torch.Tensor, int]:
-        tokens = torch.tensor(self.tokenizer_fn(sequence))
-        num_tokens = tokens.shape[0]
-        return tokens, num_tokens
+        # Set custom exception handler
+        sys.excepthook = self._exception_handler
+
+    # Custom exception handler
+    def _exception_handler(self, exc_type, exc_value, traceback):
+        self.cleanup()
+        sys.__excepthook__(exc_type, exc_value, traceback)
+
+    def cleanup(self):
+        self.stop_event.set()
+        if self.executor is not None and self.executor.is_alive():
+            self.executor.join()
+
+    def _process_sequence(self, sequence: str) -> torch.Tensor:
+        return torch.tensor(self.tokenizer_fn(sequence))
 
     def _data_loading_loop(self):
         batch_tokens = []
         concat_sequence = torch.tensor([], dtype=torch.long)
 
-        for item in self.iter:
-            tokens, num_tokens = self._process_sequence(item)
+        for i, item in enumerate(self.iter):
+            # print(f"Loading item {i}")
+            if self.stop_event.is_set():
+                break
 
-            if num_tokens == 0:
-                continue
+            tokens = self._process_sequence(item)
 
-            # If current buffer sequence is too long, we flush it
-            if concat_sequence.numel() + num_tokens + 1 > self.max_sequence_len:
-                # Pad the sequence
-                if concat_sequence.numel() < self.max_sequence_len:
-                    concat_sequence = torch.cat([concat_sequence, torch.full(self.max_sequence_len - concat_sequence.numel(), self.pad_token_id, dtype=torch.long)])
+            # If the current sequence is too long, we continuously split it.
+            while tokens.numel() != 0:
+                # print(f"Processing item {i} with {tokens.numel()} tokens, ({concat_sequence.numel()} in concat_sequence))")
+                if concat_sequence.numel() == 0:
+                    split = min(self.max_sequence_len, tokens.numel())
+                    concat_sequence = tokens[:split]
+                    tokens = tokens[split:]
+                elif concat_sequence.numel() + 1 == self.max_sequence_len:
+                    concat_sequence = torch.cat([concat_sequence, torch.tensor([self.pad_token_id], dtype=torch.long)]) 
+                else:
+                    split = min(self.max_sequence_len - concat_sequence.numel() - 1, tokens.numel())
+                    concat_sequence = torch.cat([concat_sequence, torch.tensor([self.sep_token_id], dtype=torch.long), tokens[:split]])
+                    tokens = tokens[split:]
 
-                batch_tokens.append(concat_sequence)
+                # If the concat_sequence is full, we flush it
+                if concat_sequence.numel() == self.max_sequence_len:
+                    batch_tokens.append(concat_sequence)
+                    concat_sequence = torch.tensor([], dtype=torch.long)
 
-                if len(batch_tokens) == self.batch_size:
-                    self.data_queue.put(torch.stack(batch_tokens))
-                    batch_tokens = []
+                    if len(batch_tokens) == self.batch_size:
+                        self.buffer_semaphore.acquire()
+                        self.data_queue.put(torch.stack(batch_tokens))
+                        batch_tokens = []
 
-                concat_sequence = tokens
-            else:
-                sep_token = torch.tensor([self.sep_token_id], dtype=torch.long)
-                concat_sequence = torch.cat([concat_sequence, sep_token, tokens]) if concat_sequence.numel() > 0 else tokens
+        if concat_sequence.numel() != 0:
+            # Pad the sequence
+            if concat_sequence.numel() < self.max_sequence_len:
+                concat_sequence = torch.cat([concat_sequence, torch.full((self.max_sequence_len - concat_sequence.numel(),), self.pad_token_id, dtype=torch.long)])
+            batch_tokens.append(concat_sequence)
 
         if batch_tokens:
+            self.buffer_semaphore.acquire()
             self.data_queue.put(torch.stack(batch_tokens))
 
-        # Signal the end of the data loading
+        # Add a None to the queue to signal the end of the data loading
         self.data_queue.put(None)
 
     def __iter__(self):
+        # Start the data loading thread
+        self.executor = Thread(target=self._data_loading_loop)
+        self.executor.start()
         while True:
             batch = self.data_queue.get()
             if batch is None:
                 break
+            self.buffer_semaphore.release()
             yield batch
+        self.cleanup()
+
+    def __del__(self):
+        # Set the stop event and wait for the data loading thread to finish
+        self.cleanup()

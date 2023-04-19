@@ -47,7 +47,7 @@ class SupervisedLearningTask(LearningTask):
                     state[k] = v.to(device)
 
 
-class SupervisedClassificationTask(SupervisedLearningTask):
+class SupervisedClassification(SupervisedLearningTask):
     """
     Expects batch to be a tuple of (inputs, targets) where inputs is a tensor of
     shape (batch_size, ...) and targets is a tensor of shape (batch_size, 1).
@@ -80,7 +80,7 @@ class SupervisedClassificationTask(SupervisedLearningTask):
         ]
 
 
-class SupervisedBinaryClassificationTask(SupervisedLearningTask):
+class SupervisedBinaryClassification(SupervisedLearningTask):
     """
     Expects batch to be a tuple of (inputs, targets) where inputs is a tensor of
     shape (batch_size, num_features) and targets is a tensor of shape
