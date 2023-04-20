@@ -158,7 +158,7 @@ class ReccurentLanguageModeling(SupervisedLearningTask):
         ]
 
 
-class LanguageModelingTask(SupervisedLearningTask):
+class TransformerLanguageModeling(SupervisedLearningTask):
     """
     Expects a single tensor of padded sequences of shape `(batch_size,
     max_sequence_len)`. Each sequence consist of a torch long tensor of token
@@ -171,6 +171,44 @@ class LanguageModelingTask(SupervisedLearningTask):
 
     Reports "perplexity" and "loss" metrics.
     """
+    def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, mask: torch.Tensor):
+        super().__init__(model, criterion, optimizer)
+        self.mask = mask
+
+    def train(self, device: torch.device) -> None:
+        super().eval(device)
+        self.mask = self.mask.to(device)
+
+    def eval(self, device: torch.device) -> None:
+        super().eval(device)
+        self.mask = self.mask.to(device)
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
-        pass
+        if backprop:
+            self.optimizer.zero_grad()
+
+        batch = batch.to(device)
+        batch_size, sequence_len = batch.shape
+
+        # Shift the batch by 1 position to create the target batch
+        input_batch = batch[:, :-1]
+        target_batch = batch[:, 1:]
+
+        # Transformers expect the batch to be of shape (sequence_len,
+        # batch_size)
+        input_batch = input_batch.transpose(0, 1)
+
+        outputs = self.model(input_batch, self.mask[:sequence_len-1, :sequence_len-1])
+
+        # Calculate the loss for the entire batch
+        loss = self.criterion(outputs.transpose(0, 1).reshape(-1, outputs.shape[-1]), target_batch.reshape(-1))
+
+        # Backward pass
+        if backprop:
+            loss.backward()
+            self.optimizer.step()
+
+        return [
+            Metric("loss", loss.item(), weight=batch_size * sequence_len),
+            Metric("perplexity", math.exp(min(loss.item(), 100)), weight=batch_size * sequence_len),
+        ]

@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 from typing import Iterable
 
@@ -7,6 +8,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from tokenizers import (Tokenizer, decoders, models, pre_tokenizers, trainers)
 from tokenizers.processors import TemplateProcessing
+from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchtext.datasets import WikiText2
 
 import dlutils
@@ -19,8 +21,10 @@ DATA_DIR = "./data"
 MAX_SEQUENCE_LEN = 512
 PAD_TOKEN_ID = 1
 SEP_TOKEN_ID = 2
+MODEL = "transformer"
 
-# Hack to download the dataset bc the tokenizer needs it
+# Hack to download the dataset bc the tokenizer needs it and it's lazily
+# downloaded.
 if not os.stat("data/datasets/WikiText2/wikitext-2/wiki.train.tokens"):
     train_datapipe, validation_datapipe, test_datapipe = WikiText2(split=('train', 'valid', 'test'), root='data')  # type: ignore
     for elem in zip(train_datapipe, validation_datapipe, test_datapipe):
@@ -131,16 +135,82 @@ class LSTMLanguageModel(nn.Module):
         return (torch.zeros(self.lstm.num_layers, batch_size, self.lstm.hidden_size).to(device),
                 torch.zeros(self.lstm.num_layers, batch_size, self.lstm.hidden_size).to(device))
 
+# Transformer implementation drawn from:
+# https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
 
-model = LSTMLanguageModel(tokenizer.get_vocab_size(), EMBEDDING_DIMENSIONS, 128, 3)
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
 
-dlutils.xavier_initialization(model)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Arguments:
+            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
+        """
+        x = x + self.pe[:x.size(0)]
+        return self.dropout(x)
 
-task = dlutils.ReccurentLanguageModeling(
-    model,
-    torch.nn.CrossEntropyLoss(),
-    torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=0.0001),
-)
+# Transformer implementation drawn from:
+# https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+class TransformerModel(nn.Module):
+    def __init__(self, vocab_size: int, embedding_dims: int, num_heads: int, dim_feedforward: int, nlayers: int, dropout: float = 0.5):
+        super().__init__()
+        self.model_type = 'Transformer'
+        self.pos_encoder = PositionalEncoding(embedding_dims, dropout)
+        encoder_layers = TransformerEncoderLayer(embedding_dims, num_heads, dim_feedforward, dropout)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
+        self.encoder = nn.Embedding(vocab_size, embedding_dims)
+        self.embedding_dims = embedding_dims
+        self.decoder = nn.Linear(embedding_dims, vocab_size)
+        self.init_weights()
+
+    def init_weights(self) -> None:
+        initrange = 0.1
+        self.encoder.weight.data.uniform_(-initrange, initrange)
+        self.decoder.bias.data.zero_()
+        self.decoder.weight.data.uniform_(-initrange, initrange)
+
+    def forward(self, src: torch.Tensor, src_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Arguments:
+            src: Tensor, shape ``[seq_len, batch_size]``
+            src_mask: Tensor, shape ``[seq_len, seq_len]``
+
+        Returns:
+            output Tensor of shape ``[seq_len, batch_size, vocab_size]``
+        """
+        src = self.encoder(src) * math.sqrt(self.embedding_dims)
+        src = self.pos_encoder(src)
+        output = self.transformer_encoder(src, src_mask)
+        output = self.decoder(output)
+        return output
+
+# Transformer implementation drawn from:
+# https://pytorch.org/tutorials/beginner/transformer_tutorial.html
+def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
+    """Generates an upper-triangular matrix of ``-inf``, with zeros on ``diag``."""
+    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1)
+
+if MODEL == "transformer":
+    model = TransformerModel(tokenizer.get_vocab_size(), EMBEDDING_DIMENSIONS, 4, 2048, 3, 0.5)
+else:
+    model = LSTMLanguageModel(tokenizer.get_vocab_size(), EMBEDDING_DIMENSIONS, 128, 3)
+    dlutils.xavier_initialization(model)
+
+criterion = torch.nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=0.0001)
+
+if MODEL == "transformer":
+    task = dlutils.TransformerLanguageModeling(model, criterion, optimizer, generate_square_subsequent_mask(MAX_SEQUENCE_LEN))
+else:
+    task = dlutils.ReccurentLanguageModeling(model, criterion, optimizer)
 
 trainer = dlutils.Trainer(
     task,
