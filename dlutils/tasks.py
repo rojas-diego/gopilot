@@ -145,7 +145,7 @@ class ReccurentLanguageModeling(SupervisedLearningTask):
         outputs, hidden = self.model(input_batch, hidden)
 
         # Calculate the loss for the entire batch
-        loss = self.criterion(outputs.view(-1, outputs.shape[-1]), target_batch.view(-1))
+        loss = self.criterion(outputs.reshape(-1, outputs.shape[-1]), target_batch.reshape(-1))
 
         # Backward pass
         if backprop:

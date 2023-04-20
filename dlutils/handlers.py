@@ -1,3 +1,4 @@
+import datetime
 import logging
 import time
 from typing import List
@@ -50,8 +51,9 @@ class LoggingHandler:
 
     def on_epoch_end(self, epoch_idx: int, metrics: List[Metric]):
         elapsed = time.time() - self.epoch_start_ts
+        elapsed_str = str(datetime.timedelta(seconds=elapsed))
         metrics_string = ", ".join([f"Validation {metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics])
-        logging.info(f"Completed Epoch {epoch_idx+1:3} | Elapsed: {elapsed} | {metrics_string}")
+        logging.info(f"Completed Epoch {epoch_idx+1:3} | Elapsed: {elapsed_str} | {metrics_string}")
 
     def on_test_end(self, metrics: List[Metric]):
         metrics_string = ", ".join([f"{metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics])

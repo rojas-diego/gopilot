@@ -53,9 +53,9 @@ class Trainer:
         self,
         task: LearningTask,
         device: str | torch.device,
-        train_loader: Iterable,
-        validation_loader: Iterable | None,
-        test_loader: Iterable | None,
+        train_loader: DataLoader,
+        validation_loader: DataLoader | None,
+        test_loader: DataLoader | None,
         handlers: List = [],
     ):
         self.task = task
@@ -132,8 +132,8 @@ class Trainer:
             if hasattr(handler, callback_name):
                 getattr(handler, callback_name)(*args, **kwargs)
 
-    def _make_progress_bar(self, desc: str, loader: IterDataPipe | DataLoader):
-        if isinstance(loader, DataLoader):
+    def _make_progress_bar(self, desc: str, loader: DataLoader):
+        if hasattr(loader.dataset, '__len__'):
             return tqdm.tqdm(enumerate(loader), desc=desc, leave=False, mininterval=0.1, total=len(loader))
         else:
             return tqdm.tqdm(enumerate(loader), desc=desc, leave=False, mininterval=0.1)
