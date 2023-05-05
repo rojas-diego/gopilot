@@ -13,11 +13,11 @@ Get familiar with the task of language modeling and implement a super simple Tra
 
 We want to train our model on Go code. We think the "Stack" dataset might be a good pick as it contains a 30GB+ of Go code from framous repositorites and has been used by other LLM projects. We have to nail this data processing step as there are many challenges with dealing with a big dataset and also many challenges in making sure we're training our model on high quality data. We must come up with a simple tokenizer that we can later improve but we must make sure it contain tokens such as `[SEP]`, `[PAD]`, `[CLS]`, `[MASK]`, `[END]` depending on what we want the final model to be able to do with the code generation ability. For example, a model that has a `[END]` token will know when to stop generating while a model that doesn't might need some other mechanism to make it stop generating stuff. Another example is `[SEP]` which would allow us to pack multiple small sequences in a single sequence fed to the model, the model will learn that this token means "Okay we're switching into a completely different sequence now". This is better than just padding all sequences to a certain length. I alredy did this in part in the `wikitext` example in the repo.
 
-- [ ] Download and preprocess the stack dataset (a dataset of code files that has a subset on Go).
-  - [ ] Filter by stars, language, origin
-  - [ ] Define a processing pipeline for each sample (whatever is deemed necessary such as dropping certain files because they're redundant, too long, computer generated, etc)
-  - [ ] Split final version into chunks (files of ~100-500MB) and save it to the cloud
-  - [ ] Push any preprocessing scripts used in the `./preprocessing` directory in the Github repository so others can reproduce data preprocessing steps
+- [x] Download and preprocess the stack dataset (a dataset of code files that has a subset on Go).
+  - [x] Filter by stars, language, origin
+  - [x] Define a processing pipeline for each sample (whatever is deemed necessary such as dropping certain files because they're redundant, too long, computer generated, etc)
+  - [x] Split final version into chunks (files of ~100-500MB) and save it to the cloud
+  - [x] Push any preprocessing scripts used in the `./scripts` directory in the Github repository so others can reproduce data preprocessing steps
 - [ ] Define a PyTorch `IterableDataset` class that is able to load the postprocessed dataset chunks, this class will be used in the final training step
   - [ ] Define a basic processing pipeline that includes tokenization, transforming the raw file samples into torch padded and batched tensors
   - [ ] Given a list of dataset chunk files, the class iteratively reads from disk and generates batches "on the fly" (in order not to keep 30GB of data in memory)
