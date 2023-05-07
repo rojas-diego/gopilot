@@ -16,6 +16,7 @@ TT_DEFAULT_OUTPUT_PATH = "config/tokenizer.json"
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a BPE tokenizer on the provided files.')
     parser.add_argument('--output-path', type=str, default=TT_DEFAULT_OUTPUT_PATH, help='The filepath the trained tokenizer should be saved to.')
+    parser.add_argument('--vocab-size', type=int, default=2**15, help='The size of the learned vocabulary.')
     parser.add_argument('files', nargs='*', help='The raw code files to use for training the tokenizer.')
     args = parser.parse_args()
 
@@ -26,5 +27,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     tokenizer = gptok.new_tokenizer()
-    gptok.train_tokenizer(tokenizer, args.files)
+    gptok.train_tokenizer(tokenizer, args.files, args.vocab_size)
     gptok.save_tokenizer(tokenizer, args.output_path)
