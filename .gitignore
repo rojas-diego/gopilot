@@ -3,10 +3,16 @@
 
 # Environment
 .env
-.neptune-config
+.vscode
 
 # Python
 **/__pycache__
 
 # Datasets
 /data/
+
+# Checkpoints
+/checkpoints/
+
+# Neptune AI
+.neptune
