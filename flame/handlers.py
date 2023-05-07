@@ -8,7 +8,6 @@ import torch
 
 from .tasks import LearningTask
 from .trackers import NeptuneTracker, NoopTracker
-from .trainer import TrainingConfig
 from .utils import Metric
 
 
@@ -25,7 +24,7 @@ class TrackingHandler:
         metrics = [Metric(f"test/{metric.name}", metric.value) for metric in metrics]
         self.tracker.track_metrics(metrics)
 
-    def on_train_batch_end(self, epoch_idx: int, batch_idx: int, metrics: List[Metric]):
+    def on_step(self, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
         metrics = [Metric(f"train/batch/{metric.name}", metric.value) for metric in metrics]
         self.tracker.track_metrics(metrics)
 
@@ -48,8 +47,8 @@ class LoggingHandler:
         self.verbose = verbose
         self.epoch_start_ts = time.time()
 
-    def on_train_start(self, device: str | torch.device, config: TrainingConfig):
-        logging.info(f"Starting training | Accelerator: {device} | Epochs: {config.num_epochs} | Gradient accumulation: {config.gradient_accumulation}")
+    def on_train_start(self, device: torch.device | str):
+        logging.info(f"Starting training | Accelerator: {device}")
 
     def on_epoch_start(self, epoch_idx: int):
         self.epoch_start_ts = time.time()

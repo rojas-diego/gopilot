@@ -33,10 +33,9 @@ def train_tokenizer(tokenizer: Tokenizer, files: list[str], vocab_size: int = 2*
     logging.info(f"Training tokenizer on {len(files)} files with vocab_size={vocab_size}...")
     tokenizer.train(files, trainer)
     tokenizer.post_processor = TemplateProcessing(
-        single="[CLS] $A [SEP]",
+        single="[CLS] $A",
         special_tokens=[
             ("[CLS]", tokenizer.token_to_id("[CLS]")),
-            ("[SEP]", tokenizer.token_to_id("[SEP]")),
         ],
     ) # type: ignore
 

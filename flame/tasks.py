@@ -6,6 +6,7 @@ import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.nn.utils.clip_grad import clip_grad_norm_ as torch_clip_grad_norm
 
 from flame.utils import Metric
 
@@ -86,8 +87,10 @@ class TransformerLanguageModelingTask(SupervisedLearningTask):
 
     Reports "perplexity" and "loss" metrics.
     """
-    def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None):
+    def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None, clip_gradients: float | None = None):
         super().__init__(model, criterion, optimizer, scheduler)
+        self.clip_gradients = clip_gradients
+        self.step_loss = []
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
         if backprop:
@@ -108,6 +111,7 @@ class TransformerLanguageModelingTask(SupervisedLearningTask):
         # Calculate the loss for the entire batch
         loss = self.criterion(outputs, target_batch)
         loss_value = loss.item()
+        self.step_loss.append(loss_value)
 
         # Backward pass
         if backprop:
@@ -119,12 +123,21 @@ class TransformerLanguageModelingTask(SupervisedLearningTask):
         ]
 
     def step(self, device: torch.device) -> List[Metric]:
+        if self.clip_gradients is not None:
+            torch_clip_grad_norm(self.model.parameters(), self.clip_gradients)
+
         self.optimizer.step()
         self.optimizer.zero_grad()
 
         if self.scheduler is not None:
             self.scheduler.step()
 
+        num_losses = len(self.step_loss)
+        step_loss_value = sum(self.step_loss) / num_losses
+        self.step_loss = []
+
         return [
+            Metric("loss", step_loss_value, weight=num_losses),
+            Metric("perplexity", math.exp(min(step_loss_value, 100)), weight=num_losses),
             Metric("lr", self.optimizer.param_groups[0]["lr"]),
         ]

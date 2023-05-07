@@ -34,7 +34,12 @@ class GPTModel(TorchModule):
         self.positional_encodings = SinusoidalPositionalEncoding(context_length, embedding_dimensions)
         self.transformer_decoder_layer = TransformerDecoderLayer(embedding_dimensions, num_heads, feedforward_dimensions, dropout, batch_first=True)
         self.transformer_decoder = TransformerDecoder(self.transformer_decoder_layer, num_layers)
-        self.linear = Linear(embedding_dimensions, vocab_size)
+        # We disable biases as per the "Cramming" paper:
+        # > We find empirical gains from disabling all linear layer biases
+        # > (Dayma et al., 2021). Just as for the attention layers, this
+        # > leverages the scaling law by accelerating gradient com- putation 
+        # > without noticeable impacts on model size
+        self.linear = Linear(embedding_dimensions, vocab_size, bias=False)
         self.loss = CrossEntropyLoss()
 
     def forward(self, batch: Tensor):
@@ -60,6 +65,16 @@ class GPTModel(TorchModule):
         with open(config_file) as f:
             config = yaml.safe_load(f)
         return cls(**config, **kwargs)
+    
+    def hyperparams(self) -> dict:
+        return {
+            'vocab_size': self.vocab_size,
+            'context_length': self.context_length,
+            'embedding_dimensions': self.embedding_dimensions,
+            'num_layers': self.num_layers,
+            'num_heads': self.num_heads,
+            'feedforward_dimensions': self.feedforward_dimensions
+        }
 
 
 class SinusoidalPositionalEncoding(TorchModule):

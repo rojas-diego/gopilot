@@ -13,6 +13,7 @@ import glob
 import logging
 import os
 import sys
+import time
 
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
@@ -37,12 +38,15 @@ if __name__ == '__main__':
     parser.add_argument('--dataset-dir', type=str, default="data/processed", help='Path to the directory containing Parquet dataset files.')
     parser.add_argument('--checkpoints-dir', type=str, default="checkpoints", help='Path where to store the checkpoint files.')
     # Training hyperparameters
-    parser.add_argument('--gradient-accumulation', type=int, help='Number of gradient accumulation steps.')
+    parser.add_argument('--accumulate-gradients', type=int, help='Number of gradient accumulation steps.')
     parser.add_argument('--batch-size', type=int, default=256, help='Batch size.')
     parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability.')
     parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay.')
     parser.add_argument('--warmup-steps', type=int, default=100, help='Number of warmup steps.')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate.')
+    parser.add_argument('--epsilon', type=float, default=10e-12, help='Epsilon.')
+    parser.add_argument('--training-budget-secs', type=int, default=60*60, help='Training budget in seconds to define the learning rate schedule (Default 1h).')
+    parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
     # Training config
     parser.add_argument('--device', type=str, default="auto", help='Device to use for training.')
     parser.add_argument('--enable-progress-bar', default=False, action='store_true', help='Enable progress bar.')
@@ -51,7 +55,7 @@ if __name__ == '__main__':
 
     # Transform args
     args.device = flame.best_device() if args.device == "auto" else args.device
-    args.gradient_accumulation = 1 if args.gradient_accumulation is None else args.gradient_accumulation
+    args.accumulate_gradients = 1 if args.accumulate_gradients is None else args.accumulate_gradients
 
     # Load the model and tokenizer
     model = gpmodel.GPTModel.from_config_file(args.model_config_file, dropout=args.dropout)
@@ -66,26 +70,35 @@ if __name__ == '__main__':
         tokenizer=tokenizer,
         sequence_length=model.context_length,
     )
-    loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=2, pin_memory=True)
+    loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=1)
 
     # Configure the tracker
     tracker = flame.NoopTracker()
     if flame.neptune_is_available():
         tracker = flame.NeptuneTracker("rojasdiegopro/gopilot")
-    tracker.track_hyperparameters(vars(args))
     logging.info(f"Run ID: {tracker.get_run_id()}")
 
+    # Record the training config and model hyperparameters
+    tracker.track_hyperparameters(vars(args))
+    tracker.track_hyperparameters(model.hyperparams())
+
     # Configure optimizer, learning rate scheduler
+    start_time = time.time()
     def learning_rate_scheduling(step):
+        # This is really funky, should be improved
         if step < args.warmup_steps:
             return step / args.warmup_steps
-        return 1.0
-    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        elapsed_time = time.time() - start_time
+        scale_factor = 1 - (elapsed_time / args.training_budget_secs)
+        if scale_factor < 0:
+            return 0.1
+        return max(0.1, scale_factor)
+    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(0.9, 0.98), eps=args.epsilon) # betas should be made configurable
     criterion = CrossEntropyLoss()
     scheduler = LambdaLR(optimizer, lr_lambda=learning_rate_scheduling)
 
     # Configure trainer
-    trainer = flame.Trainer(flame.TransformerLanguageModelingTask(model, criterion, optimizer, scheduler), args.device, loader)
+    trainer = flame.Trainer(flame.TransformerLanguageModelingTask(model, criterion, optimizer, scheduler, clip_gradients=args.clip_gradients), args.device, loader)
     trainer.register_handlers(
         flame.LoggingHandler(verbose=args.verbose),
         flame.CheckpointingHandler(args.checkpoints_dir, filename_prefix=tracker.get_run_id()+"step={step:04}-loss={loss:.2f}", max_step_interval=64),
@@ -93,8 +106,7 @@ if __name__ == '__main__':
     )
 
     # Run training
-    config = flame.TrainingConfig(
-        gradient_accumulation=args.gradient_accumulation,
-        enable_progress_bar=args.enable_progress_bar
+    trainer.train(
+        accumulate_gradients=args.accumulate_gradients,
+        enable_progress_bar=args.enable_progress_bar,
     )
-    trainer.train(config)

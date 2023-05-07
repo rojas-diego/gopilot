@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import logging
 import sys
 from typing import Iterable, List
@@ -8,15 +7,6 @@ import tqdm
 
 from .tasks import LearningTask
 from .utils import Metric, MetricsStore
-
-@dataclass
-class TrainingConfig:
-    # Accumulate gradients over `n` batches before updating weights.
-    gradient_accumulation: int = 1
-    # Number of epochs to train for.
-    num_epochs: int = 1
-    # Enable progress bar.
-    enable_progress_bar: bool = True
 
 
 class Trainer:
@@ -78,14 +68,17 @@ class Trainer:
         self.test_loader = test_loader
         self.handlers = handlers
 
-    def train(self, config: TrainingConfig):
-        self._callback("on_train_start", self.device, config)
-        for epoch_idx in range(config.num_epochs):
+    def train(self, accumulate_gradients: int = 1, num_epochs: int = 1, enable_progress_bar: bool = False):
+        self.accumulate_gradients = accumulate_gradients
+        self.enable_progress_bar = enable_progress_bar
+        self.num_epochs = num_epochs
+        self._callback("on_train_start", self.device)
+        for epoch_idx in range(num_epochs):
             self._callback("on_epoch_start", epoch_idx)
-            self._train_epoch(config, epoch_idx)
-            metrics = self._validate_epoch(config, epoch_idx)
+            self._train_epoch(epoch_idx)
+            metrics = self._validate_epoch(epoch_idx)
             self._callback("on_epoch_end", epoch_idx, metrics)
-        self._callback("on_train_end", config.num_epochs)
+        self._callback("on_train_end", num_epochs)
 
     def test(self):
         if self.test_loader is None:
@@ -108,29 +101,28 @@ class Trainer:
     def register_handlers(self, *handlers):
         self.handlers.extend(handlers)
 
-    def _train_epoch(self, config: TrainingConfig, epoch_idx: int):
+    def _train_epoch(self, epoch_idx: int):
         step_idx = 0
         self.task.train(self.device)
-        samples = self._make_progress_bar(config.enable_progress_bar, f"Train Epoch {epoch_idx+1}", self.train_loader)
+        samples = self._make_progress_bar(self.enable_progress_bar, f"Train Epoch {epoch_idx+1}", self.train_loader)
         for batch_idx, batch in samples:
             self._callback("on_train_batch_start", epoch_idx, batch_idx)
-            metrics = self.task.forward(batch, self.device, backprop=True)
-            if (batch_idx + 1) % config.gradient_accumulation == 0:
+            batch_metrics = self.task.forward(batch, self.device, backprop=True)
+            if (batch_idx + 1) % self.accumulate_gradients == 0:
                 step_metrics = self.task.step(self.device)
-                step_metrics.extend(metrics)
                 self._callback("on_step", epoch_idx, batch_idx, step_idx, step_metrics)
-                step_idx += 1
                 self._callback("checkpoint", self.task, epoch_idx, batch_idx, step_idx, step_metrics)
-            self._callback("on_train_batch_end", epoch_idx, batch_idx, metrics)
-            samples.update(metrics)
+                step_idx += 1
+                samples.update(step_metrics)
+            self._callback("on_train_batch_end", epoch_idx, batch_idx, batch_metrics)
 
-    def _validate_epoch(self, config: TrainingConfig, epoch_idx: int):
+    def _validate_epoch(self, epoch_idx: int):
         if self.validation_loader is None:
             return None
         self.task.eval(self.device)
         metrics_store = MetricsStore()
         with torch.no_grad():
-            samples = self._make_progress_bar(config.enable_progress_bar, f"Validate Epoch {epoch_idx+1}", self.validation_loader)
+            samples = self._make_progress_bar(self.enable_progress_bar, f"Validate Epoch {epoch_idx+1}", self.validation_loader)
             for batch_idx, batch in samples:
                 self._callback("on_validation_batch_start", epoch_idx, batch_idx)
                 metrics = self.task.forward(batch, self.device, backprop=False)
