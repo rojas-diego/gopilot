@@ -48,7 +48,8 @@ This step aims at optimising our model to make sure it processes the most amount
 
 Prepare the production run. Must rigourously setup tracking, checkpointing, logging, monitoring and validate the compute environment.
 
-- [ ] Define the Docker image to run our training (it must contain all dependencies and trigger our training script which downloads the dataset and starts feeding batches)
+- [ ] Define custom handlers to manage tracking, checkpointing, logging, monitoring and profiling of the run
+- [x] Define the Docker image to run our training (it must contain all dependencies and trigger our training script which downloads the dataset and starts feeding batches)
 - [x] Prepare by setting up checkpointing, logging, tracking and monitoring of the run
 - [ ] Spin up a VM on the cloud and train for a day
   - [ ] Decide which GPU to use (NVIDIA A40 48 GB, NVIDIA RTX A6000, Smaller?)
