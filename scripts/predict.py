@@ -21,16 +21,16 @@ def sample_with_temperature(logits, temperature):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint-file', type=str, required=True, help='Path to the model checkpoint')
-    parser.add_argument('--model-config-file', type=str, required=True, help='Path to the model configuration file.')
-    parser.add_argument('--tokenizer-config-file', type=str, required=True, help='Path to the tokenizer configuration file.')
+    parser.add_argument('--model', type=str, required=True, help='Path to the model configuration file.')
+    parser.add_argument('--tokenizer', type=str, required=True, help='Path to the tokenizer configuration file.')
     parser.add_argument('--input-file', type=str, required=True, help='Path to the input file.')
     parser.add_argument('--max-tokens', type=int, default=8, help='Maximum number of tokens to generate.')
     parser.add_argument('--temperature', type=float, default=0.5, help='Sampling temperature.')
     args = parser.parse_args()
 
     # Load the model and tokenizer
-    tokenizer = gptok.load_tokenizer(args.tokenizer_config_file)
-    model = gpmodel.GPTModel.from_config_file(args.model_config_file)
+    tokenizer = gptok.load_tokenizer(args.tokenizer)
+    model = gpmodel.GPTModel.from_config_file(args.model)
     assert model.vocab_size == tokenizer.get_vocab_size(), "Model context length and tokenizer context length must match."
 
     # Load the checkpoint
@@ -57,4 +57,4 @@ if __name__ == "__main__":
             print(f"Token '{token}' with id {new_token}")
             tokens.append(new_token)
         print("--- OUTPUT ---")
-        print(gptok.metaspace_cleanup(tokenizer.decode(tokens)))
+        print(gptok.metaspace_cleanup(tokenizer.decode(tokens))[1:])

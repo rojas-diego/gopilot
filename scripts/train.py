@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size.')
     parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability.')
     parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay value.')
-    parser.add_argument('--warmup-steps', type=int, default=100, help='Number of warmup steps.')
+    parser.add_argument('--warmup', type=int, default=100, help='Number of warmup steps.')
     parser.add_argument('--lr', type=float, default=1e-3, help='Maximum learning rate.')
     parser.add_argument('--epsilon', type=float, default=10e-12, help='AdamW epsilon paramater.')
     parser.add_argument('--training-budget-secs', type=int, default=60*60, help='Training budget in seconds to define the learning rate schedule (Default 1h).')
@@ -89,11 +89,15 @@ if __name__ == '__main__':
     tracker.track_hyperparameters(model.hyperparams())
 
     # Configure optimizer, learning rate scheduler
-    start_time = time.time()
+    start_time = None
     def learning_rate_scheduling(step):
         # This is really funky, should be improved
-        if step < args.warmup_steps:
-            return step / args.warmup_steps
+        if step < args.warmup:
+            return step / args.warmup
+        global start_time
+        if start_time is None:
+            start_time = time.time()
+        step = step - args.warmup
         elapsed_time = time.time() - start_time
         scale_factor = 1 - (elapsed_time / args.training_budget_secs)
         if scale_factor < 0:
