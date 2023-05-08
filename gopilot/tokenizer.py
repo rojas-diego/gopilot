@@ -48,3 +48,6 @@ def save_tokenizer(tokenizer: Tokenizer, path: str):
 def load_tokenizer(path: str) -> Tokenizer:
     logging.info("Loading tokenizer from '%s'", path)
     return Tokenizer.from_file(path)
+
+def metaspace_cleanup(text: str) -> str:
+    return text.replace(" ", "").replace("▁", " ")

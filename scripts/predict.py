@@ -57,6 +57,4 @@ if __name__ == "__main__":
             print(f"Token '{token}' with id {new_token}")
             tokens.append(new_token)
         print("--- OUTPUT ---")
-        def remove_metaspace(text: str) -> str:
-            return text.replace(" ", "").replace("▁", " ")
-        print(remove_metaspace(tokenizer.decode(tokens)))
+        print(gptok.metaspace_cleanup(tokenizer.decode(tokens)))

@@ -11,8 +11,9 @@
 # Datasets
 /data/
 
-# Checkpoints
+# Checkpoints, samples
 /checkpoints/
+/samples/debug
 
 # Neptune AI
 .neptune
