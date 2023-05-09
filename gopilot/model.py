@@ -40,7 +40,6 @@ class GPTModel(TorchModule):
         # > leverages the scaling law by accelerating gradient com- putation 
         # > without noticeable impacts on model size
         self.linear = Linear(embedding_dimensions, vocab_size, bias=False)
-        self.loss = CrossEntropyLoss()
 
     def forward(self, batch: Tensor):
         batch_size, sequence_length = batch.shape
