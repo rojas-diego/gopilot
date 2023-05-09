@@ -8,16 +8,18 @@ Collection of articles, papers and techniques considered in this project.
 
 ## Papers
 
-| Name                                                                                                                                                                                                                                                                    | Description                                                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| [Evaluating Large Language Models Trained on Code](https://www.notion.so/rojasdiego/Evaluating-Large-Language-Models-Trained-on-Code-4ef74247a9ed4f1889449ecca57f76f4?pvs=4)                                                                                            | Foundation Codex paper. HumanEval benchmark and introduction to large language models for Code |
-| [CodeGeeX: A Pre-Trained Model for Code Generation with Multilingual Evaluations on HumanEval-X](https://www.notion.so/rojasdiego/CodeGeeX-A-Pre-Trained-Model-for-Code-Generation-with-Multilingual-Evaluations-on-HumanEval-X-7bb10770e5d244288112f485152ee439?pvs=4) | 13B multilingual model based on GPT                                                            |
+| Name                                                                                                                                                                                                                                                                    | Description                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [Evaluating Large Language Models Trained on Code](https://www.notion.so/rojasdiego/Evaluating-Large-Language-Models-Trained-on-Code-4ef74247a9ed4f1889449ecca57f76f4?pvs=4)                                                                                            | Foundation Codex paper. HumanEval benchmark and introduction to large language models for Code                            |
+| [CodeGeeX: A Pre-Trained Model for Code Generation with Multilingual Evaluations on HumanEval-X](https://www.notion.so/rojasdiego/CodeGeeX-A-Pre-Trained-Model-for-Code-Generation-with-Multilingual-Evaluations-on-HumanEval-X-7bb10770e5d244288112f485152ee439?pvs=4) | 13B multilingual model based on GPT                                                                                       |
+| [NarrowBERT: Accelerating Masked Language Model Pretraining and Inference](https://arxiv.org/abs/2301.04761)                                                                                                                                                            | A a modified transformer encoder that increases the throughput for masked language model pretraining by more than 2 times |
 
 ## Articles
 
-| Name                                                                                | Description                                                         |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [How to train your own Large Language Models](https://blog.replit.com/llm-training) | General advice in training code LLMs. Good advice on data pipeline. |
+| Name                                                                                          | Description                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [How to train your own Large Language Models](https://blog.replit.com/llm-training)           | General advice in training code LLMs. Good advice on data pipeline. |
+| [MosaicBERT: Pretraining BERT from Scratch for $20](https://www.mosaicml.com/blog/mosaicbert) | Optimised BERT training recipe                                      |
 
 ## Libraries
 
