@@ -16,4 +16,4 @@ dependencies:
   # Utilities
   - tqdm==4.65.0
   # CUDA
-  - pytorch-cuda=12.1"
+  - pytorch-cuda==12.1"
