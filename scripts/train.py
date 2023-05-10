@@ -75,7 +75,8 @@ if __name__ == '__main__':
     # Optionally compile model
     if args.compile:
         assert args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
-        model: gpmodel.GPTModel = torch.compile(model) # type: ignore
+        logging.info("Compiling model using 'inductor' backend")
+        model: gpmodel.GPTModel = torch.compile(model, backend="inductor") # type: ignore
 
     # Load the dataset
     dataset = gploader.GopilotDataset(
@@ -88,6 +89,7 @@ if __name__ == '__main__':
     # Configure the tracker
     tracker = flame.NoopTracker()
     if flame.neptune_is_available() and args.neptune:
+        logging.info("Using Neptune integration")
         tracker = flame.NeptuneTracker("rojasdiegopro/gopilot")
     logging.info(f"Run ID: {tracker.get_run_id()}")
 
@@ -96,23 +98,10 @@ if __name__ == '__main__':
     tracker.track_hyperparameters(model.hyperparams())
 
     # Configure optimizer, learning rate scheduler
-    start_time = None
-    def learning_rate_scheduling(step):
-        # This is really funky, should be improved
-        if step < args.warmup:
-            return step / args.warmup
-        global start_time
-        if start_time is None:
-            start_time = time.time()
-        step = step - args.warmup
-        elapsed_time = time.time() - start_time
-        scale_factor = 1 - (elapsed_time / args.training_budget_secs)
-        if scale_factor < 0:
-            return 0.1
-        return max(0.1, scale_factor)
-    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(0.9, 0.98), eps=args.epsilon) # betas should be made configurable
+
+    optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(0.9, 0.98), eps=args.epsilon) # TODO: betas should be made configurable
+    scheduler = LambdaLR(optimizer, lr_lambda=flame.LinearLearningRateScheduleWithBudget(args.warmup, args.training_budget_secs, 0.1)) # TODO: better learning rate schedule
     criterion = CrossEntropyLoss()
-    scheduler = LambdaLR(optimizer, lr_lambda=learning_rate_scheduling)
 
     # Configure debugging sampler
     sampler = gpdebug.TrainingSampler("samples/debug", tokenizer, max_batch_interval=64, max_time_interval_secs=60, max_files=10) if args.sampling else None

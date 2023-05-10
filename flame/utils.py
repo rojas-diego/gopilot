@@ -1,5 +1,6 @@
 import logging
-from typing import List
+import time
+from typing import Any, List
 import torch
 from torch.nn import Module
 import torch.nn as nn
@@ -86,3 +87,21 @@ def log_model_summary(model: Module):
     logging.info(f"Trainable parameters: {human_format(trainable_params)}")
     logging.info(f"Non-trainable parameters: {human_format(total_params - trainable_params)}")
     logging.info(f"Total layers: {len(list(model.modules()))}")
+
+
+class LinearLearningRateScheduleWithBudget:
+    def __init__(self, warmup_steps: int, training_budget_secs: int, min_factor: float):
+        self.warmup_steps = warmup_steps
+        self.training_budget_secs = training_budget_secs
+        self.min_factor = min_factor
+        self.start_time = time.time()
+
+    def __call__(self, step: int) -> float:
+        if step < self.warmup_steps:
+            return step / self.warmup_steps
+        if step == self.warmup_steps:
+            self.start_time = time.time()
+        step = step - self.warmup_steps
+        elapsed_time = time.time() - self.start_time
+        scale_factor = 1 - (elapsed_time / self.training_budget_secs)
+        return max(self.min_factor, scale_factor)
