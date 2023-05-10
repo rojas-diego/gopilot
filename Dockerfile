@@ -28,17 +28,14 @@ RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.s
 RUN conda update -n base conda
 
 # Copy your environment.yml file
-COPY environment.yml .
+COPY environment_cuda.yml .
 
 # Install the dependencies from the environment.yml file
-RUN conda env update --name base --file environment.yml && \
+RUN conda env update --name base --file environment_cuda.yml && \
     conda clean --all --yes
 
 # Set the working directory
 WORKDIR /workspace
-
-# Copy your project files (you might want to specify specific files or directories)
-COPY environment.yml .
 
 # Copy your project files (specific files or directories)
 COPY ./scripts/ ./scripts
