@@ -192,7 +192,6 @@ class Trainer:
         self._callback("cleanup")
 
     def _signal_handler(self, sig, frame):
-        print()
         logging.warning("Received signal. Attempting graceful exit.")
         self._unregister_signal_and_exit_handlers()
         self._callback("cleanup")

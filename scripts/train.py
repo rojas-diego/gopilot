@@ -15,6 +15,7 @@ import os
 import sys
 import time
 
+import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.nn import CrossEntropyLoss
@@ -57,10 +58,11 @@ if __name__ == '__main__':
     parser.add_argument('--neptune', default=False, action='store_true', help='Enable Neptune integration.')
     parser.add_argument('--sampling', default=False, action='store_true', help='Enable debugging sampler.')
     parser.add_argument('--profiling', default=False, action='store_true', help='Enable profiling.')
+    parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     args = parser.parse_args()
 
     # Transform args
-    args.device = flame.best_device() if args.device == "auto" else args.device
+    args.device = flame.best_device() if args.device == "auto" else torch.device(args.device)
     args.gradient_accumulation_steps = 1 if args.gradient_accumulation_steps is None else args.gradient_accumulation_steps
 
     # Load the model and tokenizer
@@ -69,6 +71,11 @@ if __name__ == '__main__':
     flame.log_model_summary(model)
     tokenizer = gptok.load_tokenizer(args.tokenizer)
     assert tokenizer.get_vocab_size() == model.vocab_size, "The tokenizer vocabulary size does not match the model's vocabulary size."
+
+    # Optionally compile model
+    if args.compile:
+        assert args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
+        model: gpmodel.GPTModel = torch.compile(model) # type: ignore
 
     # Load the dataset
     dataset = gploader.GopilotDataset(
