@@ -15,7 +15,7 @@ topFrame.pack(fill=tk.X)
 code.pack(fill=tk.BOTH, expand=True)
 label.pack(side='left')
 
-def handle_button_click(event):
+def load_file(event):
     file_to_load = entry.get()
     if file_to_load.strip() == '':
         label.config(text='Enter a file path', foreground='red')
@@ -28,6 +28,7 @@ def handle_button_click(event):
     except:
         label.config(text=f'Error when opening "{file_to_load}"', foreground='red')
 
-button.bind('<Button-1>', handle_button_click)
+button.bind('<Button-1>', load_file)
+entry.bind('<Return>', load_file)
 
 window.mainloop()
