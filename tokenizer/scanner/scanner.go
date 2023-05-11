@@ -90,6 +90,8 @@ func main() {
 					result.Append(TAB, "TAB", "\t")
 				case ' ':
 					result.Append(SPACE, "SPACE", " ")
+				case '\r':
+					// ignore carriage return
 				default:
 					log.Fatalf("Unexpected whitespace character: %c", char)
 				}
