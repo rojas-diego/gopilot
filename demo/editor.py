@@ -30,5 +30,6 @@ def load_file(event):
 
 button.bind('<Button-1>', load_file)
 entry.bind('<Return>', load_file)
+entry.focus_set()
 
 window.mainloop()
