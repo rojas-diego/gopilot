@@ -89,7 +89,7 @@ def log_model_summary(model: Module):
     logging.info(f"Total layers: {len(list(model.modules()))}")
 
 
-class LinearLearningRateScheduleWithBudget:
+class LinearLRScheduleWithTimeBudget:
     def __init__(self, warmup_steps: int, training_budget_secs: int, min_factor: float):
         self.warmup_steps = warmup_steps
         self.training_budget_secs = training_budget_secs

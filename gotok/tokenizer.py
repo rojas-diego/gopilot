@@ -1,11 +1,16 @@
 from dataclasses import dataclass
 import json
+import sys
 from typing import List
 import os
 import ctypes
 
+if sys.platform == "win32":
+    lib_ext = ".dll"
+else:
+    lib_ext = ".so"
 
-GOTOK_HANDLE = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(__file__), "libgotok.so"))
+GOTOK_HANDLE = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(__file__), "libgotok" + lib_ext))
 
 @dataclass
 class EncodeResult:

@@ -39,8 +39,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer', type=str, required=True, help='Path to the tokenizer configuration file.')
-    parser.add_argument('--dataset-dir', type=str, default="data/processed", help='Path to the directory containing Parquet dataset files.')
-    parser.add_argument('--checkpoints-dir', type=str, default="checkpoints", help='Path where to store the checkpoint files.')
+    parser.add_argument('--dataset-dir', type=str, default="data", help='Path to the directory containing Parquet dataset files.')
+    parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Path where to store the checkpoint files.')
     # Training hyperparameters
     parser.add_argument('--gradient-accumulation-steps', type=int, help='Number of gradient accumulation steps (Default 1, no accumulation).')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size.')
@@ -98,13 +98,12 @@ if __name__ == '__main__':
     tracker.track_hyperparameters(model.hyperparams())
 
     # Configure optimizer, learning rate scheduler
-
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay, betas=(0.9, 0.98), eps=args.epsilon) # TODO: betas should be made configurable
-    scheduler = LambdaLR(optimizer, lr_lambda=flame.LinearLearningRateScheduleWithBudget(args.warmup, args.training_budget_secs, 0.1)) # TODO: better learning rate schedule
+    scheduler = LambdaLR(optimizer, lr_lambda=flame.LinearLRScheduleWithTimeBudget(args.warmup, args.training_budget_secs, 0.1)) # TODO: better learning rate schedule
     criterion = CrossEntropyLoss()
 
-    # Configure debugging sampler
-    sampler = gpdebug.TrainingSampler("samples/debug", tokenizer, max_batch_interval=64, max_time_interval_secs=60, max_files=10) if args.sampling else None
+    # Optionally ocnfigure debugging sampler
+    sampler = gpdebug.TrainingSampler("out/debug-samples", tokenizer, max_batch_interval=64, max_time_interval_secs=60, max_files=10) if args.sampling else None
 
     # Configure trainer
     trainer = flame.Trainer(gptask.GopilotTask(model, criterion, optimizer, scheduler, clip_gradients=args.clip_gradients, sampler=sampler), args.device)
@@ -117,7 +116,7 @@ if __name__ == '__main__':
 
     # TODO: Add CUDA profiling, add better profiling support (regions)
     if args.profiling:
-        trainer.register_handlers(flame.TorchProfilingHandler("profile.json", activities=[ProfilerActivity.CPU], schedule=schedule(wait=0, warmup=15, active=3, repeat=2)))
+        trainer.register_handlers(flame.TorchProfilingHandler("out/profile.json", activities=[ProfilerActivity.CPU], schedule=schedule(wait=0, warmup=15, active=3, repeat=2)))
 
     # Run training
     trainer.train(
