@@ -17,13 +17,17 @@ go build -o gotok/libgotok.dll -buildmode=c-shared ./gotok/tokenizer.go
 
 ## Usage
 
-**Process the dataset**: `python scripts/preprocess.py --help`
+### Inference Server
 
-**Train the tokenizer**: `python scripts/train_tokenizer.py --help`
+The inference server is a simple HTTP server that hosts the model and exposes a `/complete` endpoint to submit samples to auto-complete.
 
-**Train the model**: `python scripts/train.py --help`
+```
+python scripts/inferencesrv.py --help
+```
 
-**Run inference on a trained model**: `python scripts/predict.py --help`
+### VSCode Extension
+
+To use the VSCode extension you must run up the inference server and load the VSCode extension by running the VSCode command "Developer: Install Extension From Location" and specifying the `vscode` folder. Then, you can invoke the "Gopilot: Auto Complete Code" command.
 
 ## Repository Structure
 
