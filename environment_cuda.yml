@@ -1,6 +1,5 @@
 channels:
   - "pytorch-nightly"
-  - "nvidia"
   - "conda-forge"
 dependencies:
   - python==3.10
@@ -15,5 +14,3 @@ dependencies:
   - neptune==1.0.2
   # Utilities
   - tqdm==4.65.0
-  # CUDA
-  - pytorch-cuda==12.1"

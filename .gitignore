@@ -17,3 +17,7 @@
 
 # Neptune AI
 .neptune
+
+# CGo
+gotok/libgotok.h
+gotok/libgotok.so
