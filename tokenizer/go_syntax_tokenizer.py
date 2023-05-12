@@ -3,7 +3,7 @@ import os
 import json
 from pdb import set_trace as st
 
-BASIC_TYPES = ['int', 'int8', 'int16 ', 'int32 ', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'uintptr', 'float32', 'float64', 'complex64', 'complex128']
+BASIC_TYPES = set(['int', 'int8', 'int16 ', 'int32 ', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'uintptr', 'float32', 'float64', 'complex64', 'complex128', 'string', 'bool', 'byte', 'rune',])
 
 def get_tokens_of_type(toks, tok_type): 
     return list(map(
@@ -18,7 +18,12 @@ def tokenize_file(filename):
     go_scanner_results = os.popen(f'go run tokenizer/scanner/scanner.go < {filename}').read()
     token_json = json.loads(go_scanner_results)
     
-    tokens = list(zip(token_json['token_names'], token_json['token_values']))
+    tokens = list(
+        map(
+            lambda tok_tuple: ('IDENT_TYPE', tok_tuple[1]) if tok_tuple[1] in BASIC_TYPES else tok_tuple,
+            zip(token_json['token_names'], token_json['token_values'])
+        )
+    )
     
     string_toks = get_tokens_of_type(tokens, 'STRING')
     ident_toks = get_tokens_of_type(tokens, 'IDENT')
