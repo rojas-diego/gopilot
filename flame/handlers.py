@@ -27,10 +27,12 @@ class TrackingHandler:
             metrics = [Metric(f"train/batch/{metric.name}", metric.value) for metric in metrics]
             self.tracker.track_metrics(metrics)
         
-    def on_epoch_end(self, trainer: Trainer, epoch_idx: int, metrics: List[Metric]):
+    def on_epoch_end(self, trainer: Trainer, epoch_idx: int):
         self.tracker.track_values([Metric("epoch", epoch_idx)])
-        metrics = [Metric(f"validation/epoch/{metric.name}", metric.value) for metric in metrics]
-        self.tracker.track_metrics(metrics)
+
+    def on_validation_end(self, trainer: Trainer, epoch_idx: int, metrics: List[Metric]):
+        metrics = [Metric(f"validation/{metric.name}", metric.value) for metric in metrics]
+        self.tracker.track_values(metrics)
 
     def on_validation_batch_end(self, trainer: Trainer, epoch_idx: int, batch_idx: int, metrics: List[Metric]):
         if self._on_batch:

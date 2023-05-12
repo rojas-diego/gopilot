@@ -143,7 +143,7 @@ class Trainer:
                 self._callback("on_validation_batch_end", epoch_idx, batch_idx, metrics)
                 metrics_store.accumulate(metrics)
                 samples.update(metrics)
-            self._callback("on_validation_start", epoch_idx, metrics_store.mean())
+            self._callback("on_validation_end", epoch_idx, metrics_store.mean())
 
     def _try_forward(self, batch, backprop: bool, epoch_idx, step_idx: int, batch_idx):
         try:

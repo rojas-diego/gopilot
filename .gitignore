@@ -24,3 +24,4 @@ gotok/libgotok.so
 
 # VSCode Extension
 vscode/node_modules
+vscode/dist
