@@ -14,3 +14,4 @@ dependencies:
   - neptune==1.0.2
   # Utilities
   - tqdm==4.65.0
+  - boto3==1.26.131

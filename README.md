@@ -34,5 +34,6 @@ go build -o gotok/libgotok.dll -buildmode=c-shared ./gotok/tokenizer.go
 | `flame`                       | Python library to simplify training deep learning models using PyTorch                                              |
 | `gopilot`                     | The gopilot Transformer model and objectives                                                                        |
 | `gotok`                       | Implementation of a Go specific tokenizer                                                                           |
+| `gocode`                      | Processing jobs and utilities for the dataset used for pre-training Gopilot                                         |
 | `scripts`                     | Python scripts used to train the model, pre-process the dataset, train the tokenizer and run inference on the model |
 | `environment_{cpu\|cuda}.yml` | List of dependencies. Install with `conda` or `mamba`.                                                              |

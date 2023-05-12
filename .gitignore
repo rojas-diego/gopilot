@@ -21,3 +21,6 @@
 # CGo
 gotok/libgotok.h
 gotok/libgotok.so
+
+# VSCode Extension
+vscode/node_modules
