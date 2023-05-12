@@ -16,9 +16,12 @@ code.pack(fill=tk.BOTH, expand=True)
 label.pack(side='left')
 
 def load_file(event):
-    file_to_load = entry.get()
-    if file_to_load.strip() == '':
+    file_to_load = entry.get().strip()
+    if file_to_load == '':
         label.config(text='Enter a file path', foreground='red')
+        return
+    if file_to_load[-3:] != '.go':
+        label.config(text='Please choose a .go file', foreground='red')
         return
     try:
         with open(file_to_load, 'r') as f:
