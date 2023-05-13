@@ -31,7 +31,7 @@ def tokenize_file(filename):
     with open(filename, 'r') as f:
         return tokenize_string(f.read())
     
-def tokenize_string(src):
+def tokenize_string(src, tokenizer=None):
     go_scanner_results = go_scanner_scan(src)
     
     tokens = list(
@@ -49,16 +49,17 @@ def tokenize_string(src):
 
     combined_bpe_toks = string_toks + comment_toks
     
-    tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
-    tokenizer.pre_tokenizer = Metaspace() # type: ignore
-    trainer = BpeTrainer(vocab_size=2**15, special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]"]) # type: ignore
-    tokenizer.train_from_iterator(combined_bpe_toks, trainer)
-    tokenizer.post_processor = TemplateProcessing(
-        single="[CLS] $A",
-        special_tokens=[
-            ("[CLS]", tokenizer.token_to_id("[CLS]")),
-        ],
-    ) # type: ignore
+    if tokenizer == None:
+        tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
+        tokenizer.pre_tokenizer = Metaspace() # type: ignore
+        trainer = BpeTrainer(vocab_size=2**15, special_tokens=["[UNK]", "[PAD]", "[CLS]", "[SEP]"]) # type: ignore
+        tokenizer.train_from_iterator(combined_bpe_toks, trainer)
+        tokenizer.post_processor = TemplateProcessing(
+            single="[CLS] $A",
+            special_tokens=[
+                ("[CLS]", tokenizer.token_to_id("[CLS]")),
+            ],
+        ) # type: ignore
 
     new_tokens = []
 
