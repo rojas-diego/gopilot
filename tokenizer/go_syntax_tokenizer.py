@@ -27,11 +27,11 @@ def get_tokens_of_type(toks, tok_type):
         )
     ))
 
-def tokenize_file(filename):
+def tokenize_file(filename, tokenizer=None):
     with open(filename, 'r') as f:
-        return tokenize_string(f.read())
+        return tokenize_src_string(f.read(), tokenizer)
     
-def tokenize_string(src, tokenizer=None):
+def tokenize_src_string(src, tokenizer=None):
     go_scanner_results = go_scanner_scan(src)
     
     tokens = list(
