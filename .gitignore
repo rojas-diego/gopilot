@@ -8,8 +8,8 @@
 # Python
 **/__pycache__
 
-# Datasets
-/data/
+# S3 Cache
+/.cache/
 
 # Checkpoints, samples
 /checkpoints/
