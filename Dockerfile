@@ -34,11 +34,27 @@ COPY environment_cuda.yml .
 RUN conda env update --name base --file environment_cuda.yml && \
     conda clean --all --yes
 
+# Install Golang
+ENV GOLANG_VERSION 1.18.1
+ENV GOPATH /go
+ENV GOROOT /usr/local/go
+ENV PATH $GOROOT/bin:$GOPATH/bin:$PATH
+
+RUN wget -q https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz -O go.tar.gz && \
+    tar -C /usr/local -xzf go.tar.gz && \
+    rm go.tar.gz && \
+    mkdir -p "$GOPATH/src" "$GOPATH/bin"
+
 # Set the working directory
 WORKDIR /workspace
 
 # Copy your project files (specific files or directories)
 COPY ./scripts/ ./scripts
-COPY ./gopilot/ ./gopilot
 COPY ./flame/ ./flame
+COPY ./gocode ./gocode
+COPY ./gopilot/ ./gopilot
 COPY ./config/ ./config
+COPY ./tokenizer ./tokenizer
+
+# Build the shared library
+RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/tokenizer.go
