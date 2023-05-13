@@ -2,7 +2,7 @@ import sys
 import os
 import json
 from pdb import set_trace as st
-from tokenizer import new_tokenizer, save_tokenizer, train_tokenizer
+from tokenizer import go_scanner_scan
 
 BASIC_TYPES = set(['int', 'int8', 'int16 ', 'int32 ', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'uintptr', 'float32', 'float64', 'complex64', 'complex128', 'string', 'bool', 'byte', 'rune',])
 
@@ -25,7 +25,12 @@ def get_tokens_of_type(toks, tok_type):
     ))
 
 def tokenize_file(filename):
-    go_scanner_results = os.popen(f'go run tokenizer/scanner/scanner.go < {filename}').read()
+    with open(filename, 'r') as f:
+        return tokenize_string(f.read())
+    
+def tokenize_string(src):
+    go_scanner_results = go_scanner_scan(src)
+    st()
     token_json = json.loads(go_scanner_results)
     
     tokens = list(
