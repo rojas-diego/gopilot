@@ -9,10 +9,10 @@ import (
 )
 
 type ScanResult struct {
-	Offsets  [][2]int
-	IDs      []int
-	Names    []string
-	Literals []string
+	Offsets  [][2]int `json:"offsets"`
+	IDs      []int    `json:"ids"`
+	Names    []string `json:"names"`
+	Literals []string `json:"literals"`
 }
 
 //export Scan

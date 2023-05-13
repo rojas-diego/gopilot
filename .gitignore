@@ -19,9 +19,5 @@
 .neptune
 
 # CGo
-gotok/libgotok.h
-gotok/libgotok.so
-
-# VSCode Extension
-vscode/node_modules
-vscode/dist
+tokenizer/libgotok.h
+tokenizer/libgotok.so
