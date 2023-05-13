@@ -3,140 +3,65 @@ package main
 import "C"
 import (
 	"encoding/json"
-	"log"
+	"go/parser"
+	"go/scanner"
+	"go/token"
 )
 
-type Config struct {
-	VocabSize int `json:"vocab_size"`
+type ScanResult struct {
+	Offsets  [][2]int
+	IDs      []int
+	Names    []string
+	Literals []string
 }
 
-type Tokenizer struct {
-	Config *Config
-}
+//export Scan
+func Scan(byteSequence *C.char) *C.char {
+	sequence := C.GoString(byteSequence)
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(sequence))
 
-type EncodeArgs struct {
-	Sequence string `json:"sequence"`
-}
+	var s scanner.Scanner
+	s.Init(file, []byte(sequence), nil, scanner.ScanComments)
 
-type EncodeResult struct {
-	IDs               []int   `json:"ids"`
-	Offsets           [][]int `json:"offsets"`
-	AttentionMask     []int   `json:"attention_mask"`
-	SpecialTokensMask []int   `json:"special_tokens_mask"`
-}
+	result := ScanResult{}
 
-type DecodeArgs struct {
-	IDs []int `json:"ids"`
-}
-
-type TrainArgs struct {
-	Files []string `json:"files"`
-}
-
-func NewTokenizer() *Tokenizer {
-	return &Tokenizer{}
-}
-
-func NewTokenizerFromConfig(config *Config) *Tokenizer {
-	return &Tokenizer{
-		Config: config,
+	for {
+		pos, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		result.Offsets = append(result.Offsets, [2]int{int(pos), int(pos) + len(lit)})
+		result.IDs = append(result.IDs, int(tok))
+		result.Names = append(result.Names, tok.String())
+		result.Literals = append(result.Literals, lit)
 	}
-}
 
-func (t *Tokenizer) Encode(args *EncodeArgs) *EncodeResult {
-	return &EncodeResult{
-		IDs: []int{1, 2, 3},
-		Offsets: [][]int{
-			{1, 2},
-			{2, 3},
-			{3, 4},
-		},
-		AttentionMask:     []int{1, 1, 1},
-		SpecialTokensMask: []int{0, 0, 0},
-	}
-}
-
-func (t *Tokenizer) Decode(args *DecodeArgs) string {
-	return "Hello World!"
-}
-
-func (t *Tokenizer) ToJSON() string {
-	configJsonBytes, err := json.Marshal(t.Config)
+	// Marshal the result into JSON
+	bytes, err := json.Marshal(result)
 	if err != nil {
-		return ""
+		return C.CString(err.Error())
 	}
 
-	return string(configJsonBytes)
+	return C.CString(string(bytes))
 }
 
-func (t *Tokenizer) Train(args *TrainArgs) error {
-	return nil
-}
+//export Parse
+func Parse(byteSequence *C.char) *C.char {
+	sequence := C.GoString(byteSequence)
+	fset := token.NewFileSet()
 
-//export Encode
-func Encode(configJson *C.char, encodeArgsJson *C.char) *C.char {
-	config := &Config{}
-	err := json.Unmarshal([]byte(C.GoString(configJson)), config)
+	parsedFile, err := parser.ParseFile(fset, "", sequence, parser.ParseComments)
 	if err != nil {
-		return nil
+		return C.CString(err.Error())
 	}
 
-	tokenizer := NewTokenizerFromConfig(config)
-
-	encodeArgs := &EncodeArgs{}
-	err = json.Unmarshal([]byte(C.GoString(encodeArgsJson)), encodeArgs)
+	// Marshal the result into JSON
+	bytes, err := json.Marshal(parsedFile)
 	if err != nil {
-		log.Println(err)
-		return nil
+		return C.CString(err.Error())
 	}
-
-	encodeResult := tokenizer.Encode(encodeArgs)
-	encodeResultJsonBytes, err := json.Marshal(encodeResult)
-	if err != nil {
-		log.Println(err)
-		return nil
-	}
-
-	return C.CString(string(encodeResultJsonBytes))
-}
-
-//export Decode
-func Decode(configJson *C.char, decodeArgsJson *C.char) *C.char {
-	config := &Config{}
-	err := json.Unmarshal([]byte(C.GoString(configJson)), config)
-	if err != nil {
-		return nil
-	}
-
-	tokenizer := NewTokenizerFromConfig(config)
-
-	decodeArgs := &DecodeArgs{}
-	err = json.Unmarshal([]byte(C.GoString(decodeArgsJson)), decodeArgs)
-	if err != nil {
-		return nil
-	}
-
-	sequence := tokenizer.Decode(decodeArgs)
-
-	return C.CString(sequence)
-}
-
-//export Train
-func Train(trainArgsJson *C.char) *C.char {
-	trainArgs := &TrainArgs{}
-	err := json.Unmarshal([]byte(C.GoString(trainArgsJson)), trainArgs)
-	if err != nil {
-		return nil
-	}
-
-	tokenizer := NewTokenizer()
-
-	err = tokenizer.Train(trainArgs)
-	if err != nil {
-		return nil
-	}
-
-	return C.CString(tokenizer.ToJSON())
+	return C.CString(string(bytes))
 }
 
 func main() {}
