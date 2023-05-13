@@ -16,6 +16,10 @@ go_scanner_scan_symbol = GOTOK_HANDLE.Scan
 go_scanner_scan_symbol.argtypes = [ctypes.c_char_p]
 go_scanner_scan_symbol.restype = ctypes.c_char_p
 
+go_scanner_id_to_token_name_symbol = GOTOK_HANDLE.IDToTokenName
+go_scanner_id_to_token_name_symbol.argtypes = [ctypes.c_int]
+go_scanner_id_to_token_name_symbol.restype = ctypes.c_char_p
+
 @dataclass
 class ScanResult:
     offsets: List[List[int]]
@@ -26,3 +30,6 @@ class ScanResult:
 def go_scanner_scan(src: str) -> ScanResult:
     scan_result_json = str(go_scanner_scan_symbol(src.encode("utf-8")), encoding="utf-8")
     return ScanResult(**json.loads(scan_result_json))
+
+def go_scanner_id_to_token_name(id: int) -> str:
+    return str(go_scanner_id_to_token_name_symbol(id), encoding="utf-8")

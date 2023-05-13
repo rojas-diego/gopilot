@@ -64,4 +64,8 @@ func Parse(byteSequence *C.char) *C.char {
 	return C.CString(string(bytes))
 }
 
+func IDToTokenName(id C.int) *C.char {
+	return C.CString(token.Token(int(id)).String())
+}
+
 func main() {}
