@@ -42,8 +42,7 @@ class InferenceServer(BaseHTTPRequestHandler):
         # Your model's forward pass implementation here
         # generated_tokens = your_model.forward_pass(content, cursor_offset)
 
-        self._send_response(200, json.dumps({"tokens": generated_tokens}))
-
+        self._send_response(200,json.dumps({"tokens": generated_tokens}))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

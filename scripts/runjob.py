@@ -39,7 +39,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(args.cache_dir, args.dest_prefix), exist_ok=True)
 
     # Instantiate the job
-    job_module = importlib.import_module(f"gocode.{args.job}")
+    job_module = importlib.import_module(args.job)
     job = job_module.Job()
 
     # Ensure {cache-dir}/{source-prefix} is either empty or matches the contents
