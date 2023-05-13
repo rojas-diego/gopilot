@@ -21,3 +21,6 @@
 # CGo
 tokenizer/libgotok.h
 tokenizer/libgotok.so
+
+# DLL
+*.dll
