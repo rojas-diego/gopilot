@@ -50,11 +50,10 @@ WORKDIR /workspace
 
 # Copy your project files (specific files or directories)
 COPY ./dataset ./dataset
-COPY ./flame/ ./flame
+COPY ./tokenizer ./tokenizer
 COPY ./model/ ./model
-COPY ./scripts/ ./scripts
-COPY ./tests ./tests
-COPY ./tokenizer/ ./tokenizer
+COPY ./flame/ ./flame
+COPY ./*.py ./
 
 # Build the shared library
 RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.go
