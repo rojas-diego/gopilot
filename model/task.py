@@ -41,18 +41,19 @@ class GopilotTask(flame.SimpleTorchTask):
         inputs = batch[:, :-1] # (batch_size, sequence_len)
         targets = batch[:, 1:] # (batch_size, sequence_len)
 
-        outputs: torch.Tensor = self.model.forward(inputs) # (batch_size, sequence_len, vocab_size)
+        outputs = self.model.forward(inputs, ) # (batch_size, sequence_len, vocab_size)
+        logits = outputs.logits # (batch_size, sequence_len, vocab_size)
 
         # Forward the inputs, targets and outputs to the sampler for debugging
         # purposes.
         if self.sampler is not None and backprop:
-            self.sampler.feed(inputs, targets, outputs)
+            self.sampler.feed(inputs, targets, logits)
 
-        outputs = outputs.view(-1, outputs.size(-1)) # (batch_size * sequence_length, vocab_size)
+        logits = logits.view(-1, logits.size(-1)) # (batch_size * sequence_length, vocab_size)
         targets = targets.reshape(-1) # (batch_size * sequence_length)
 
         # Calculate the loss for the entire batch
-        loss = self.criterion(outputs, targets)
+        loss = self.criterion(logits, targets)
         loss_value = loss.item()
         self.step_loss.append(loss_value)
 

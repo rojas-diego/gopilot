@@ -14,15 +14,16 @@ class GopilotConfig:
     feedforward_dimensions: int
 
 class GopilotModel(GPTBigCodeForCausalLM):
-    def __init__(self, vocab_size: int, context_length: int, embedding_dimensions: int, num_layers: int, num_heads: int, feedforward_dimensions: int):
+    def __init__(self, config: GopilotConfig, dropout: float = 0.0):
+        self._config = config
         super().__init__(
             config=GPTBigCodeConfig(
-                vocab_size=vocab_size,
-                n_embd=embedding_dimensions,
-                n_layer=num_layers,
-                n_head=num_heads,
-                n_inner=feedforward_dimensions,
-                n_positions=context_length,
+                vocab_size=config.vocab_size,
+                n_embd=config.embedding_dimensions,
+                n_layer=config.num_layers,
+                n_head=config.num_heads,
+                n_inner=config.feedforward_dimensions,
+                n_positions=config.context_length,
                 eos_token_id=-1,
                 bos_token_id=-1,
             )
@@ -30,4 +31,7 @@ class GopilotModel(GPTBigCodeForCausalLM):
 
     @classmethod
     def from_config_file(cls, path: str, dropout: float = 0.0):
-        return cls(**yaml.safe_load(open(path, "r")))
+        return cls(GopilotConfig(**yaml.safe_load(open(path, "r"))), dropout=dropout)
+
+    def get_config(self) -> GopilotConfig:
+        return self._config

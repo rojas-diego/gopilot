@@ -12,8 +12,7 @@
 /.cache/
 
 # Checkpoints, samples
-/checkpoints/
-/samples/debug
+/out/
 
 # Neptune AI
 .neptune

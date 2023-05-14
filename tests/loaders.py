@@ -14,12 +14,8 @@ from tokenizer import GoScannerTokenizer
 class TestLoaders(unittest.TestCase):
     def test_s3_parquet_with_tokenization_and_strided_window_batcher(self):
         tokenizer = GoScannerTokenizer.from_file(".cache/tokenizers/the-stack-dedup-v1.2/go-scanner-bpe-base/tokenizer.json")
-
-        def transform(x: str) -> List[int]:
-            return tokenizer.encode(x)
-
         source = CachedS3DataSource(bucket="gopilot", region="ap-east-1", cache_dir=".cache", file_lambda=lambda x: x.endswith(".parquet"), prefix="datasets/the-stack-dedup-v1.2/base")
-        extractor = ParquetExtractorWithTokenization(transform=transform)
+        extractor = ParquetExtractorWithTokenization(transform=tokenizer.encode)
         batcher = StridedWindowBatcher(batch_size=16, window_size=128, stride=64)
         loader = DataLoader(source, extractor, batcher)
 
