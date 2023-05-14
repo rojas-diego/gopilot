@@ -86,8 +86,8 @@ if __name__ == '__main__':
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, criterion, optimizer, scheduler, clip_gradients=tp_args.clip_gradients), run_args.device)
     trainer.register_handlers(
-        # Checkpoint every 1024 steps or every 30 minutes, whichever comes first
-        flame.CheckpointingHandler(run_args.checkpoints_dir, filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}", max_step_interval=1024, max_time_interval_sec=60*30),
+        # Checkpoint every 1024 steps or every 5 minutes, whichever comes first
+        flame.CheckpointingHandler(run_args.checkpoints_dir, filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}", max_step_interval=1024, max_time_interval_sec=60*5),
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=False),
         flame.TrackingHandler(tracker, on_batch=False),
     )
