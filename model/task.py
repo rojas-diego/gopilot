@@ -1,13 +1,5 @@
 import math
-import os
-import sys
 from typing import List
-
-from .debug import TrainingSampler
-from .model import GopilotModel
-
-# Add the parent directory of this script to the module search path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
 from torch.nn import Module
@@ -16,6 +8,9 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 import flame
+
+from .debug import TrainingSampler
+from .model import GopilotModel
 
 
 class GopilotTask(flame.SimpleTorchTask):

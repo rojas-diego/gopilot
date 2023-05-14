@@ -14,11 +14,10 @@ class Trainer:
     def __init__(self, tokenizer: _HuggingFaceTokenizer, vocab_size: int, special_tokens: List[str]):
         assert len(special_tokens) != 0
         self.tokenizer = tokenizer
-        self.tokenizer.add_special_tokens(special_tokens)
         self.trainer = BpeTrainer(vocab_size=vocab_size, special_tokens=["[UNK]", "[PAD]", "[EOS]"]) # type: ignore
 
     def train_from_iterator(self, iterator: Iterable):
-        return self.tokenizer.train_from_iterator(iterator)
+        return self.tokenizer.train_from_iterator(iterator, trainer=self.trainer)
     
 
 class GoScannerTrainer(Trainer):
@@ -29,7 +28,7 @@ class GoScannerTrainer(Trainer):
             scan_result = go_scanner_scan(sequence)
             # Only train on comments, strings, and identifiers
             accumulated_sequences.extend([scan_result.literals[i] for i in range(len(scan_result.names)) if scan_result.names[i] in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']])
-        self.tokenizer.train_from_iterator(accumulated_sequences)
+        super().train_from_iterator(accumulated_sequences)
 
 
 class Tokenizer(ABC):

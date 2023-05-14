@@ -67,7 +67,7 @@ func Scan(byteSequence *C.char) *C.char {
 	results := ScanResult{}
 	for i := 0; i < len(rawResults.IDs); i++ {
 		// Sometimes "\n" are returned as token.SEMICOLON tokens
-		if rawResults.IDs[i] == int(token.SEMICOLON) && sequence[rawResults.Offsets[i].Start()] == '\n' {
+		if rawResults.IDs[i] == int(token.SEMICOLON) && (rawResults.Offsets[i].Start() >= len(sequence) || sequence[rawResults.Offsets[i].Start()] == '\n') {
 			rawResults.IDs[i] = int(NEWLINE)
 			rawResults.Names[i] = "NEWLINE"
 			rawResults.Literals[i] = "\n"
@@ -75,7 +75,7 @@ func Scan(byteSequence *C.char) *C.char {
 		}
 
 		// Sometimes token.SEMICOLON are hallucinated
-		if rawResults.IDs[i] == int(token.SEMICOLON) && sequence[rawResults.Offsets[i].Start()] != ';' {
+		if rawResults.IDs[i] == int(token.SEMICOLON) && (rawResults.Offsets[i].Start() >= len(sequence) || sequence[rawResults.Offsets[i].Start()] != ';') {
 			continue
 		}
 
@@ -84,6 +84,9 @@ func Scan(byteSequence *C.char) *C.char {
 		if i > 0 && rawResults.Offsets[i].Start() > rawResults.Offsets[i-1].End() {
 			// For each character in the gap.
 			for j := rawResults.Offsets[i-1].End(); j < rawResults.Offsets[i].Start(); j++ {
+				if len(sequence) <= j {
+					break
+				}
 				switch sequence[j] {
 				case ' ':
 					results.Offsets = append(results.Offsets, [2]int{j, j + 1})

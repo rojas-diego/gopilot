@@ -22,7 +22,7 @@ go build -o tokenizer/libgotok.dll -buildmode=c-shared ./tokenizer/libgotok.go
 The inference server is a simple HTTP server that hosts the model and exposes a `/complete` endpoint to submit samples to auto-complete.
 
 ```
-python scripts/inferencesrv.py --help
+python inference_server.py --help
 ```
 
 ### VSCode Extension
@@ -31,13 +31,10 @@ To use the VSCode extension you must run up the inference server and load the VS
 
 ## Repository Structure
 
-| Location                      | Description                                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `demo`                        | Nano text editor to showcase Gopilot                                                                                |
-| `config`                      | Stores sample model configuration files and tokenizer configuration files                                           |
-| `flame`                       | Python library to simplify training deep learning models using PyTorch                                              |
-| `gopilot`                     | The gopilot Transformer model and objectives                                                                        |
-| `gotok`                       | Implementation of a Go specific tokenizer                                                                           |
-| `gocode`                      | Processing jobs and utilities for the dataset used for pre-training Gopilot                                         |
-| `scripts`                     | Python scripts used to train the model, pre-process the dataset, train the tokenizer and run inference on the model |
-| `environment_{cpu\|cuda}.yml` | List of dependencies. Install with `conda` or `mamba`.                                                              |
+| Location                      | Description                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------- |
+| `flame`                       | Python library to simplify training deep learning models using PyTorch      |
+| `dataset`                     | The gopilot Transformer model and objectives                                |
+| `model`                       | Implementation of a Go specific tokenizer                                   |
+| `tokenizer`                   | Processing jobs and utilities for the dataset used for pre-training Gopilot |
+| `environment_{cpu\|cuda}.yml` | List of dependencies. Install with `conda` or `mamba`.                      |
