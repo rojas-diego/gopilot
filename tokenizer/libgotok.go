@@ -116,6 +116,34 @@ func Scan(byteSequence *C.char) *C.char {
 		results.Literals = append(results.Literals, rawResults.Literals[i])
 	}
 
+	// Check if there are trailing whitespaces after the last token offset.End()
+	// and append them to the results.
+	for j := results.Offsets[len(results.Offsets)-1].End(); j < len(sequence); j++ {
+		if len(sequence) <= j {
+			break
+		}
+		switch sequence[j] {
+		case ' ':
+			results.Offsets = append(results.Offsets, [2]int{j, j + 1})
+			results.IDs = append(results.IDs, int(SPACE))
+			results.Names = append(results.Names, "SPACE")
+			results.Literals = append(results.Literals, " ")
+		case '\n':
+			results.Offsets = append(results.Offsets, [2]int{j, j + 1})
+			results.IDs = append(results.IDs, int(NEWLINE))
+			results.Names = append(results.Names, "NEWLINE")
+			results.Literals = append(results.Literals, "\n")
+		case '\t':
+			results.Offsets = append(results.Offsets, [2]int{j, j + 1})
+			results.IDs = append(results.IDs, int(TAB))
+			results.Names = append(results.Names, "TAB")
+			results.Literals = append(results.Literals, "\t")
+		case '\r':
+			// Ignore carriage return.
+		default:
+		}
+	}
+
 	// Marshal the result into JSON
 	resultsBytes, err := json.Marshal(results)
 	if err != nil {

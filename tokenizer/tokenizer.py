@@ -137,8 +137,13 @@ class GoScannerTokenizer(Tokenizer):
 
     def id_to_token(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
-            return self.tokenizer.id_to_token(id)
+            return self.tokenizer.decode([id])
         return go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+
+    def id_to_token_name(self, id: int) -> str:
+        if id < self.tokenizer.get_vocab_size():
+            return self.tokenizer.id_to_token(id)
+        return go_scanner_id_to_token_name(id - self.tokenizer.get_vocab_size())
 
     def special_token_to_id(self, token: str) -> int:
         return self.tokenizer.token_to_id(token)

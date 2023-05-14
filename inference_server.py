@@ -53,9 +53,11 @@ def forward_pass(content, cursor_offset):
     tokenized_before = tokenizer.encode(before)
     tokenized_before = tokenized_before[-context_length:]
     left_padded_tokenized_before = ([tokenizer.special_token_to_id("[PAD]")] * (context_length - len(tokenized_before))) + tokenized_before
+    print("Tokenized Before:", [tokenizer.id_to_token_name(id) for id in left_padded_tokenized_before])
     outputs = model.forward(torch.tensor([left_padded_tokenized_before]))
     predicted_token_id = torch.argmax(outputs.logits[0, -1, :]) # type: ignore
     predicted_token = tokenizer.id_to_token(int(predicted_token_id.item()))
+    print("Predicted:", tokenizer.id_to_token_name(int(predicted_token_id.item())))
     return predicted_token
 
 
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     model = GopilotModel.from_config_file(args.model, dropout=0.0)
-    tokenizer = GoScannerTokenizer.from_file(args.tokenizer)
+    tokenizer: GoScannerTokenizer = GoScannerTokenizer.from_file(args.tokenizer) # type: ignore
     checkpoint = torch.load(args.checkpoint)
     model.load_state_dict(checkpoint['model'])
 
