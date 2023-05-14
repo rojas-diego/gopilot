@@ -33,7 +33,10 @@ class ScanResult:
 
 def go_scanner_scan(src: str) -> ScanResult:
     scan_result_json = str(go_scanner_scan_symbol(src.encode("utf-8")), encoding="utf-8")
-    return ScanResult(**json.loads(scan_result_json))
+    try:
+        return ScanResult(**json.loads(scan_result_json))
+    except Exception:
+        raise Exception("libgotok.Scan(): " + scan_result_json)
 
 def go_scanner_id_to_token_name(id: int) -> str:
     return str(go_scanner_id_to_token_name_symbol(id), encoding="utf-8")

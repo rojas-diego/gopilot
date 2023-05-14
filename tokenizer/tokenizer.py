@@ -3,7 +3,8 @@ from typing import Iterable, List
 
 from tokenizers import Tokenizer as _HuggingFaceTokenizer
 from tokenizers.models import BPE
-from tokenizers.pre_tokenizers import Metaspace
+from tokenizers.pre_tokenizers import ByteLevel as ByteLevelEncoder
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder
 from tokenizers.trainers import BpeTrainer
 
 from .scan import go_scanner_id_to_token_name, go_scanner_scan, go_scanner_id_to_token_literal
@@ -18,6 +19,17 @@ class Trainer:
 
     def train_from_iterator(self, iterator: Iterable):
         return self.tokenizer.train_from_iterator(iterator)
+    
+
+class GoScannerTrainer(Trainer):
+    def train_from_iterator(self, iterator: Iterable):
+        # First scan the iterator to get the Go tokens
+        accumulated_sequences = []
+        for sequence in iterator:
+            scan_result = go_scanner_scan(sequence)
+            # Only train on comments, strings, and identifiers
+            accumulated_sequences.extend([scan_result.literals[i] for i in range(len(scan_result.names)) if scan_result.names[i] in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']])
+        self.tokenizer.train_from_iterator(accumulated_sequences)
 
 
 class Tokenizer(ABC):
@@ -52,8 +64,9 @@ class Tokenizer(ABC):
 
 class HuggingFaceTokenizer(Tokenizer):
     def __init__(self):
-        self.tokenizer = _HuggingFaceTokenizer(model=BPE()) # type: ignore
-        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
+        self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True)) # type: ignore
+        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
+        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
 
     def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
         return Trainer(self.tokenizer, vocab_size, special_tokens)
@@ -88,13 +101,13 @@ class GoScannerTokenizer(Tokenizer):
 
     def __init__(self):
         self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True))
-        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
+        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
+        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
 
     def encode(self, sequence: str) -> List[int]:
         scan_result = go_scanner_scan(sequence)
         expanded_tokens = []
         for i, token_name in enumerate(scan_result.names):
-            # print(i, scan_result.offsets[i], token_name, scan_result.literals[i])
             # Expanded tokens
             if token_name in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']:
                 tokens = self.tokenizer.encode(scan_result.literals[i])
@@ -114,16 +127,14 @@ class GoScannerTokenizer(Tokenizer):
             if id < self.tokenizer.get_vocab_size():
                 sequence_of_hf_tokens.append(id)
             else:
-                print(sequence_of_hf_tokens)
                 hf_decoded = self.tokenizer.decode(sequence_of_hf_tokens)
-                print(hf_decoded)
-                decoded += hf_decoded
+                decoded += hf_decoded[1:]
                 sequence_of_hf_tokens = []
                 decoded += go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
         return decoded
 
     def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
-        return Trainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
+        return GoScannerTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
 
     def id_to_token(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
@@ -152,8 +163,9 @@ class AdvancedGoScannerTokenizer(Tokenizer):
     EXTRA_TOKENS = ['"', '//', '/*', '*/']
 
     def __init__(self):
-        self.tokenizer = _HuggingFaceTokenizer(model=BPE())
-        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
+        self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True)) # type: ignore
+        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
+        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
         self.BASIC_TYPES_START = self.NUM_GO_TOKENS
         self.EXTRA_TOKENS_START = self.BASIC_TYPES_START + len(self.BASIC_TYPES)
         self.BPE_START = self.EXTRA_TOKENS_START + len(self.EXTRA_TOKENS)

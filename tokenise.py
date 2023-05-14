@@ -20,3 +20,4 @@ if __name__ == "__main__":
     print("----- Result -----", tok.encode(stdin_contents), sep="\n")
     print("----- Decoded -----", [tok.id_to_token(id) for id in tok.encode(stdin_contents)], sep="\n")
     print("----- Reconstructed -----", tok.decode(tok.encode(stdin_contents)), sep="\n")
+    print("----- Reconstruction Status -----", "Success" if tok.decode(tok.encode(stdin_contents)) == stdin_contents else "Failure", sep="\n")

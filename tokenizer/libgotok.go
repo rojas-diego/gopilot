@@ -3,7 +3,6 @@ package main
 import "C"
 import (
 	"encoding/json"
-	"fmt"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -67,6 +66,19 @@ func Scan(byteSequence *C.char) *C.char {
 	// output.
 	results := ScanResult{}
 	for i := 0; i < len(rawResults.IDs); i++ {
+		// Sometimes "\n" are returned as token.SEMICOLON tokens
+		if rawResults.IDs[i] == int(token.SEMICOLON) && sequence[rawResults.Offsets[i].Start()] == '\n' {
+			rawResults.IDs[i] = int(NEWLINE)
+			rawResults.Names[i] = "NEWLINE"
+			rawResults.Literals[i] = "\n"
+			rawResults.Offsets[i] = Offset{rawResults.Offsets[i].Start(), rawResults.Offsets[i].Start() + 1}
+		}
+
+		// Sometimes token.SEMICOLON are hallucinated
+		if rawResults.IDs[i] == int(token.SEMICOLON) && sequence[rawResults.Offsets[i].Start()] != ';' {
+			continue
+		}
+
 		// If some tokens' offsets are discontinuous, we need to fill the gap
 		// with whitespaces.
 		if i > 0 && rawResults.Offsets[i].Start() > rawResults.Offsets[i-1].End() {
@@ -91,7 +103,7 @@ func Scan(byteSequence *C.char) *C.char {
 				case '\r':
 					// Ignore carriage return.
 				default:
-					return C.CString(fmt.Sprintf("Unexpected character %q at offset %d", sequence[j], j))
+					// fmt.Printf("libgotok.Scan(): Unexpected character %q, %q\n", sequence[j], sequence)
 				}
 			}
 		}
