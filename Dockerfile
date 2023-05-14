@@ -49,12 +49,12 @@ RUN wget -q https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz -O g
 WORKDIR /workspace
 
 # Copy your project files (specific files or directories)
-COPY ./scripts/ ./scripts
+COPY ./dataset ./dataset
 COPY ./flame/ ./flame
-COPY ./gocode ./gocode
-COPY ./gopilot/ ./gopilot
-COPY ./config/ ./config
-COPY ./tokenizer ./tokenizer
+COPY ./model/ ./model
+COPY ./scripts/ ./scripts
+COPY ./tests ./tests
+COPY ./tokenizer/ ./tokenizer
 
 # Build the shared library
-RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/tokenizer.go
+RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.go

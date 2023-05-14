@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import string
@@ -25,6 +26,7 @@ class NeptuneTracker:
             capture_stderr=False,
             capture_stdout=False,
             source_files=["*.py"])
+        logging.info(f"Run ID: {self.get_run_id()}")
 
     def _getenv(self, key: str):
         value = os.environ.get(key)

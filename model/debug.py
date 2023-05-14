@@ -4,7 +4,7 @@ import time
 
 import torch
 
-from .tokenizer import Tokenizer, metaspace_cleanup
+from tokenizer import Tokenizer
 
 
 class TrainingSampler:

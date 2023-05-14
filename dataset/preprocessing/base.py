@@ -3,6 +3,7 @@ import logging
 import os
 import pandas
 import boto3
+import shutil
 
 class PreprocessingJob:
     def __init__(self, bucket: str, region: str, cache_dir: str, source_prefix: str | None, dest_prefix: str):
@@ -11,8 +12,7 @@ class PreprocessingJob:
         self._cache_dir = cache_dir
         self._source_prefix = source_prefix
         self._dest_prefix = dest_prefix
-        self._client = boto3.client('s3', region_name=region)
-        self._bucket = self._client.Bucket(bucket)
+        self._bucket = boto3.resource('s3', region_name=region).Bucket(bucket)
         # Check that {bucket}/{source-prefix} exists
         if not self._bucket:
             raise Exception(f"Bucket '{bucket}' does not exist")
@@ -32,6 +32,8 @@ class PreprocessingJob:
             if not os.path.exists(local_path):
                 logging.info(f"Downloading missing file s3://{self._bucket_name}/{obj.key} to {local_path}")
                 self._bucket.download_file(obj.key, local_path)
+            else:
+                logging.info(f"Using cached file {local_path}")
             yield local_path
 
     def file(self, filename: str):
@@ -48,12 +50,17 @@ class PreprocessingJob:
         """Writes the parquet file to the local cache and uploads it to S3."""
         df.to_parquet(os.path.join(self._cache_dir, self._dest_prefix, filename))
         self._bucket.upload_file(os.path.join(self._cache_dir, self._dest_prefix, filename), os.path.join(self._dest_prefix, filename))
+        logging.info(f"Uploaded file {filename} to s3://{self._bucket_name}/{self._dest_prefix}/{filename}")
 
     def save_json(self, data: dict, filename: str):
         """Writes the json file to the local cache and uploads it to S3."""
         with open(os.path.join(self._cache_dir, self._dest_prefix, filename), "w") as f:
             f.write(json.dumps(data))
         self._bucket.upload_file(os.path.join(self._cache_dir, self._dest_prefix, filename), os.path.join(self._dest_prefix, filename))
+        logging.info(f"Uploaded file {filename} to s3://{self._bucket_name}/{self._dest_prefix}/{filename}")
 
-    def run(self):
-        pass
+    def save(self, path: str, filename: str):
+        """Copies the file to the local cache and uploads it to S3."""
+        shutil.copy(path, os.path.join(self._cache_dir, self._dest_prefix, filename))
+        self._bucket.upload_file(path, os.path.join(self._dest_prefix, filename))
+        logging.info(f"Uploaded file {filename} to s3://{self._bucket_name}/{self._dest_prefix}/{filename}")

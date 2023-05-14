@@ -9,7 +9,7 @@ dependencies:
   - tokenizers==0.13.3
   - transformers==4.29.1
   # Loading Datasets
-  - pandas==2.0.0
+  - pandas==2.0.1
   - pyarrow==10.0.1
   # Tracking
   - neptune==1.0.2

@@ -4,7 +4,7 @@ import sys
 from typing import List
 
 from .debug import TrainingSampler
-from .model import Model
+from .model import GopilotModel
 
 # Add the parent directory of this script to the module search path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -29,7 +29,7 @@ class GopilotTask(flame.SimpleTorchTask):
 
     Reports "perplexity" and "loss" metrics.
     """
-    def __init__(self, model: Model, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None, clip_gradients: float | None = None, sampler: TrainingSampler | None = None):
+    def __init__(self, model: GopilotModel, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None, clip_gradients: float | None = None, sampler: TrainingSampler | None = None):
         super().__init__(model, criterion, optimizer, scheduler)
         self.clip_gradients = clip_gradients
         self.sampler = sampler

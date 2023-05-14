@@ -10,9 +10,9 @@ Build the Go tokenizer binary:
 
 ```bash
 # Linux, MacOS
-go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/tokenizer.go
+go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.go
 # Windows
-go build -o tokenizer/libgotok.dll -buildmode=c-shared ./tokenizer/tokenizer.go
+go build -o tokenizer/libgotok.dll -buildmode=c-shared ./tokenizer/libgotok.go
 ```
 
 ## Usage

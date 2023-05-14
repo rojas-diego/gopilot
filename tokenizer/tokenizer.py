@@ -1,33 +1,40 @@
-from pdb import set_trace as st
-from tokenizers.models import BPE
-from tokenizers.pre_tokenizers import Metaspace
-from tokenizers.processors import TemplateProcessing
 from abc import ABC, abstractmethod
 from typing import Iterable, List
-from .scan import go_scanner_scan, go_scanner_id_to_token_name
-from tokenizers.pre_tokenizers import Whitespace
-from tokenizers import Tokenizer as WrappedHFTokenizer
-from tokenizers.trainers import BpeTrainer, Trainer as HFTrainer
-from pickle import load, dump
-from dataclasses import dataclass
-import functools
-from typing import Any, List
+
+from tokenizers import Tokenizer as _HuggingFaceTokenizer
+from tokenizers.models import BPE
+from tokenizers.pre_tokenizers import Metaspace
+from tokenizers.trainers import BpeTrainer
+
+from .scan import go_scanner_id_to_token_name, go_scanner_scan, go_scanner_id_to_token_literal
+
+
+class Trainer:
+    def __init__(self, tokenizer: _HuggingFaceTokenizer, vocab_size: int, special_tokens: List[str]):
+        assert len(special_tokens) != 0
+        self.tokenizer = tokenizer
+        self.tokenizer.add_special_tokens(special_tokens)
+        self.trainer = BpeTrainer(vocab_size=vocab_size, special_tokens=["[UNK]", "[PAD]", "[EOS]"]) # type: ignore
+
+    def train_from_iterator(self, iterator: Iterable):
+        return self.tokenizer.train_from_iterator(iterator)
+
 
 class Tokenizer(ABC):
     @abstractmethod
     def encode(self, sequence: str) -> List[int]:
-        raise NotImplementedError
-    
+        pass
+
     @abstractmethod
     def decode(self, ids: List[int]) -> str:
         pass
 
     @abstractmethod
-    def get_vocab_size(self) -> int:
+    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
         pass
 
     @abstractmethod
-    def train_from_iterator(self, iterator: Iterable):
+    def get_vocab_size(self) -> int:
         pass
 
     @abstractmethod
@@ -42,17 +49,14 @@ class Tokenizer(ABC):
     def save(self, path: str):
         pass
 
-    @abstractmethod
-    def from_file(cls, path: str) -> "Tokenizer":
-        pass
 
-class HFTokenizer(Tokenizer):
-    def __init__(self, tokenizer: WrappedHFTokenizer, vocab_size: int, special_tokens: list):
-        self.tokenizer = tokenizer
-        self.tokenizer.pre_tokenizer = Metaspace()
-        self.vocab_size = vocab_size
-        self.special_tokens = special_tokens
-        self.trainer = BpeTrainer(vocab_size=vocab_size, special_tokens=special_tokens)
+class HuggingFaceTokenizer(Tokenizer):
+    def __init__(self):
+        self.tokenizer = _HuggingFaceTokenizer(model=BPE()) # type: ignore
+        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
+
+    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
+        return Trainer(self.tokenizer, vocab_size, special_tokens)
 
     def encode(self, sequence: str) -> List[int]:
         return self.tokenizer.encode(sequence).ids
@@ -63,9 +67,6 @@ class HFTokenizer(Tokenizer):
     def get_vocab_size(self) -> int:
         return self.tokenizer.get_vocab_size()
 
-    def train_from_iterator(self, iterator: Iterable):
-        return self.tokenizer.train_from_iterator(iterator, self.trainer)
-
     def special_token_to_id(self, token: str) -> int:
         return self.tokenizer.token_to_id(token)
 
@@ -74,28 +75,85 @@ class HFTokenizer(Tokenizer):
 
     def save(self, path: str):
         self.tokenizer.save(path)
-        with open(path + '_', 'wb') as f:
-            dump((self.vocab_size, self.special_tokens), f)
 
     @classmethod
     def from_file(cls, path: str) -> "Tokenizer":
-        tokenizer = WrappedHFTokenizer.from_file(path)
-        with open(path + '_', 'rb') as f:
-            vocab_size, special_tokens = load(f)
-        return HFTokenizer(tokenizer=tokenizer, vocab_size=vocab_size, special_tokens=special_tokens)
+        tokenizer = HuggingFaceTokenizer()
+        tokenizer.tokenizer = _HuggingFaceTokenizer.from_file(path) # type: ignore
+        return tokenizer
+
 
 class GoScannerTokenizer(Tokenizer):
+    GO_TOKENS_COUNT = 89 + 3 # 89 Go tokens + 3 special tokens
+
+    def __init__(self):
+        self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True))
+        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
+
+    def encode(self, sequence: str) -> List[int]:
+        scan_result = go_scanner_scan(sequence)
+        expanded_tokens = []
+        for i, token_name in enumerate(scan_result.names):
+            # print(i, scan_result.offsets[i], token_name, scan_result.literals[i])
+            # Expanded tokens
+            if token_name in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']:
+                tokens = self.tokenizer.encode(scan_result.literals[i])
+                expanded_tokens.extend(tokens.ids)
+            # Ignored tokens
+            elif token_name in ['EOF']:
+                continue
+            # Go tokens
+            else:
+                expanded_tokens.append(scan_result.ids[i] + self.tokenizer.get_vocab_size())
+        return expanded_tokens
+
+    def decode(self, ids: List[int]) -> str:
+        decoded = ""
+        sequence_of_hf_tokens = []
+        for id in ids:
+            if id < self.tokenizer.get_vocab_size():
+                sequence_of_hf_tokens.append(id)
+            else:
+                print(sequence_of_hf_tokens)
+                hf_decoded = self.tokenizer.decode(sequence_of_hf_tokens)
+                print(hf_decoded)
+                decoded += hf_decoded
+                sequence_of_hf_tokens = []
+                decoded += go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+        return decoded
+
+    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
+        return Trainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
+
+    def id_to_token(self, id: int) -> str:
+        if id < self.tokenizer.get_vocab_size():
+            return self.tokenizer.id_to_token(id)
+        return go_scanner_id_to_token_name(id - self.tokenizer.get_vocab_size())
+
+    def special_token_to_id(self, token: str) -> int:
+        return self.tokenizer.token_to_id(token)
+
+    def get_vocab_size(self) -> int:
+        return self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT
+
+    def save(self, path: str):
+        self.tokenizer.save(path)
+
+    @classmethod
+    def from_file(cls, path: str) -> Tokenizer:
+        tokenizer = cls()
+        tokenizer.tokenizer = _HuggingFaceTokenizer.from_file(path) # type: ignore
+        return tokenizer
+
+
+class AdvancedGoScannerTokenizer(Tokenizer):
     NUM_GO_TOKENS = 89
     BASIC_TYPES = ['int', 'int8', 'int16 ', 'int32 ', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'uintptr', 'float32', 'float64', 'complex64', 'complex128', 'string', 'bool', 'byte', 'rune',]
     EXTRA_TOKENS = ['"', '//', '/*', '*/']
 
-    def __init__(self, tokenizer: WrappedHFTokenizer, vocab_size: int, special_tokens: list):
-        self.tokenizer = tokenizer
-        self.tokenizer.pre_tokenizer = Metaspace()
-        self.vocab_size = vocab_size
-        self.special_tokens = special_tokens
-        self.trainer = BpeTrainer(vocab_size=vocab_size - self.NUM_GO_TOKENS - len(self.BASIC_TYPES) - len(self.EXTRA_TOKENS), special_tokens=special_tokens)
-
+    def __init__(self):
+        self.tokenizer = _HuggingFaceTokenizer(model=BPE())
+        self.tokenizer.pre_tokenizer = Metaspace() # type: ignore
         self.BASIC_TYPES_START = self.NUM_GO_TOKENS
         self.EXTRA_TOKENS_START = self.BASIC_TYPES_START + len(self.BASIC_TYPES)
         self.BPE_START = self.EXTRA_TOKENS_START + len(self.EXTRA_TOKENS)
@@ -176,53 +234,18 @@ class GoScannerTokenizer(Tokenizer):
             )
         )
         return [tok[1] for tok in tokens if tok[0] in ['IDENT', 'STRING', 'COMMENT']]
-        
-    def train_from_iterator(self, iterator: Iterable):
-        bpe_token_set_gen = (self.seq_to_bpe_tokens(seq) for seq in iterator)
-        train_iter = functools.reduce(lambda a,b: a+b, bpe_token_set_gen)
-        self.tokenizer.train_from_iterator(train_iter, self.trainer)
+
+    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
+        return Trainer(self.tokenizer, vocab_size - self.BPE_START, special_tokens)
 
     def get_vocab_size(self) -> int:
         return self.tokenizer.get_vocab_size() + self.BPE_START
 
     def save(self, path: str):
         self.tokenizer.save(path)
-        with open(path + '_', 'wb') as f:
-            dump((self.vocab_size, self.special_tokens), f)
 
     @classmethod
     def from_file(cls, path: str) -> "Tokenizer":
-        tokenizer = WrappedHFTokenizer.from_file(path)
-        with open(path + '_', 'rb') as f:
-            vocab_size, special_tokens = load(f)
-        return GoScannerTokenizer(tokenizer=tokenizer, vocab_size=vocab_size, special_tokens=special_tokens)
-
-
-class GoAstTokenizer(Tokenizer):
-    def __init__(self, tokenizer: WrappedHFTokenizer, vocab_size: int, special_tokens: list):
-        self.tokenizer = tokenizer
-
-    def encode(self, sequence: str) -> List[int]:
-        raise NotImplementedError
-    
-    def decode(self, ids: List[int]) -> str:
-        pass
-
-    def get_vocab_size(self) -> int:
-        pass
-
-    def train_from_iterator(self, iterator: Iterable):
-        pass
-
-    def special_token_to_id(self, token: str) -> int:
-        pass
-
-    def id_to_token(self, id: int) -> str:
-        pass
-
-    def save(self, path: str):
-        pass
-
-    @classmethod
-    def from_file(cls, path: str) -> "Tokenizer":
-        pass
+        tokenizer = cls()
+        tokenizer.tokenizer = _HuggingFaceTokenizer.from_file(path) # type: ignore
+        return tokenizer

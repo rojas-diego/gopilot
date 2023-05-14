@@ -1,4 +1,4 @@
-// Hello
+// Hello World
 // World
 package main
 
