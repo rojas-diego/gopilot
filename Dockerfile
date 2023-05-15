@@ -1,7 +1,9 @@
 FROM nvcr.io/nvidia/pytorch:23.04-py3
 
+ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
+
 # Install some necessary dependencies
-RUN apt-get update && apt-get install -y \
+RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
     wget \
     curl \
     git \
