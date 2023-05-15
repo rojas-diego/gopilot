@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:11.8-cudnn8-runtime-ubuntu22.04
 
 # Install some necessary dependencies
 RUN apt-get update && apt-get install -y \
