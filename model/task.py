@@ -41,7 +41,7 @@ class GopilotTask(flame.SimpleTask):
         inputs = batch[:, :-1] # (batch_size, sequence_len)
         targets = batch[:, 1:] # (batch_size, sequence_len)
 
-        outputs = self.model.forward(inputs, ) # (batch_size, sequence_len, vocab_size)
+        outputs = self.model(inputs) # (batch_size, sequence_len, vocab_size)
         logits = outputs.logits # (batch_size, sequence_len, vocab_size)
 
         # Forward the inputs, targets and outputs to the sampler for debugging
