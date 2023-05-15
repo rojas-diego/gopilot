@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+from typing import Optional
 import pandas
 import boto3
 import shutil
 
+
 class PreprocessingJob:
-    def __init__(self, bucket: str, cache_dir: str, source_prefix: str | None, dest_prefix: str):
+    def __init__(self, bucket: str, cache_dir: str, source_prefix: Optional[str], dest_prefix: str):
         self._bucket_name = bucket
         self._cache_dir = cache_dir
         self._source_prefix = source_prefix

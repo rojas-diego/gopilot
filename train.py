@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 from dataclasses import dataclass
+from typing import Union
 
 import torch
 from torch.nn import CrossEntropyLoss
@@ -40,7 +41,7 @@ class S3Args:
 
 @dataclass
 class RunArgs:
-    device: str | torch.device
+    device: Union[str, torch.device]
     progress: bool
     verbose: bool
     neptune: bool

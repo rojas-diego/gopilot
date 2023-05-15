@@ -2,7 +2,7 @@ import logging
 import os
 import random
 import string
-from typing import List
+from typing import List, Optional
 import neptune
 from neptune.utils import stringify_unsupported
 
@@ -19,7 +19,7 @@ class NeptuneTracker:
     Tracks multiple metrics such as hyperparameters, losses, accuracies, etc.
     """
 
-    def __init__(self, project: str | None = None, api_token: str | None = None):
+    def __init__(self, project: Optional[str] = None, api_token: Optional[str] = None):
         self.run = neptune.init_run(
             project=project if project is not None else self._getenv("NEPTUNE_PROJECT"),
             api_token=api_token if api_token is not None else self._getenv("NEPTUNE_API_TOKEN"),

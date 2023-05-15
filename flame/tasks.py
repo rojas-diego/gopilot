@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Optional
 
 import torch
 from torch.nn import Module
@@ -40,7 +40,7 @@ class Task(ABC):
 
 
 class SimpleTask(Task):
-    def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None):
+    def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, scheduler: Optional[LRScheduler] = None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer

@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 import time
-from typing import List
+from typing import List, Union
 
 from torch.profiler import profile
 
@@ -12,7 +12,7 @@ from .trainer import Trainer
 
 
 class TrackingHandler:
-    def __init__(self, tracker: NeptuneTracker | NoopTracker, on_step: bool = True, on_batch: bool = True):
+    def __init__(self, tracker: Union[NeptuneTracker, NoopTracker], on_step: bool = True, on_batch: bool = True):
         self._on_step = on_step
         self._on_batch = on_batch
         self.tracker = tracker
@@ -26,7 +26,7 @@ class TrackingHandler:
         if self._on_batch:
             metrics = [Metric(f"train/batch/{metric.name}", metric.value) for metric in metrics]
             self.tracker.track_metrics(metrics)
-        
+
     def on_epoch_end(self, trainer: Trainer, epoch_idx: int):
         self.tracker.track_values([Metric("epoch", epoch_idx)])
 

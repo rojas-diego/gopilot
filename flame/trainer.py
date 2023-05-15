@@ -2,7 +2,7 @@ import atexit
 import logging
 import signal
 import sys
-from typing import Iterable, List
+from typing import Iterable, List, Optional, Union
 
 import torch
 import tqdm
@@ -55,7 +55,7 @@ class Trainer:
     def __init__(
         self,
         task: Task,
-        device: str | torch.device,
+        device: Union[str, torch.device],
         handlers: List = [],
     ):
         self.task = task
@@ -64,7 +64,7 @@ class Trainer:
         self.is_training = False
         self.is_testing = False
 
-    def train(self, train_loader: Iterable, validation_loader: Iterable | None = None, num_epochs: int = 1, gradient_accumulation_steps: int = 1, enable_progress_bar: bool = False):
+    def train(self, train_loader: Iterable, validation_loader: Optional[Iterable] = None, num_epochs: int = 1, gradient_accumulation_steps: int = 1, enable_progress_bar: bool = False):
         self.num_epochs = num_epochs
         self.gradient_accumulation_steps = gradient_accumulation_steps
         self.enable_progress_bar = enable_progress_bar
@@ -152,7 +152,7 @@ class Trainer:
             logging.error(f"Exception raised during {self.task.__class__.__name__}.forward() (epoch={epoch_idx+1}, batch={batch_idx}, step={step_idx}). Attempting graceful exit.")
             self._exception()
             raise e
-        
+
     def _try_step(self, epoch_idx, batch_idx, step_idx: int):
         try:
             return self.task.step(self.device)
@@ -207,8 +207,8 @@ class Trainer:
         if enable_progress_bar:
             if sys.stdout.isatty():
                 if hasattr(loader, 'dataset'):
-                    if hasattr(loader.dataset, '__len__'): # type: ignore
-                        return TQDMProgressBar(tqdm.tqdm(base, desc=desc, leave=False, mininterval=0.1, total=len(loader.dataset))) # type: ignore
+                    if hasattr(loader.dataset, '__len__'):  # type: ignore
+                        return TQDMProgressBar(tqdm.tqdm(base, desc=desc, leave=False, mininterval=0.1, total=len(loader.dataset)))  # type: ignore
                 return TQDMProgressBar(tqdm.tqdm(base, desc=desc, leave=False, mininterval=0.1))
             else:
                 logging.warning("Progress bar is not supported in non-interactive mode.")

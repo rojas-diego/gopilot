@@ -1,5 +1,5 @@
 import math
-from typing import List
+from typing import List, Optional
 
 import torch
 from torch.nn import Module
@@ -24,7 +24,7 @@ class GopilotTask(flame.SimpleTask):
 
     Reports "perplexity" and "loss" metrics.
     """
-    def __init__(self, model: GopilotModel, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None, clip_gradients: float | None = None, sampler: TrainingSampler | None = None):
+    def __init__(self, model: GopilotModel, criterion: Module, optimizer: Optimizer, scheduler: Optional[LRScheduler] = None, clip_gradients: Optional[float] = None, sampler: Optional[TrainingSampler] = None):
         super().__init__(model, criterion, optimizer, scheduler)
         self.clip_gradients = clip_gradients
         self.sampler = sampler
