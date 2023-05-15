@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 
 import torch
 from torch.nn import CrossEntropyLoss
@@ -9,7 +10,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 
 import flame
-from dataset import DataLoader, CachedS3DataSource, ParquetExtractorWithTokenization, StridedWindowBatcher
+from dataset import DataPipeline, CachedS3DataSource, ParquetExtractorWithTokenization, StridedWindowBatcher
 from model import GopilotModel, GopilotTask
 from tokenizer import GoScannerTokenizer
 
@@ -36,8 +37,7 @@ if __name__ == '__main__':
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
     s3_parser.add_argument('--s3-bucket', type=str, default="gopilot", help='S3 bucket name.')
-    s3_parser.add_argument('--s3-region', type=str, default="ap-east-1", help="S3 bucket region.")
-    s3_parser.add_argument('--s3-cache-dir', type=str, default=".cache", help="Local cache directory for S3 files.")
+    s3_parser.add_argument('--cache-dir', type=str, default=".cache", help='Local cache directory.')
     s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
@@ -48,6 +48,11 @@ if __name__ == '__main__':
     run_parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
     run_args = run_parser.parse_args(remaining_args)
+
+    assert "AWS_DEFAULT_REGION" in os.environ, "AWS_DEFAULT_REGION environment variable must be set."
+    assert "AWS_ACCESS_KEY_ID" in os.environ, "AWS_ACCESS_KEY_ID environment variable must be set."
+    assert "AWS_SECRET_ACCESS_KEY" in os.environ, "AWS_SECRET_ACCESS_KEY environment variable must be set."
+    assert "NEPTUNE_API_TOKEN" in os.environ, "NEPTUNE_API_TOKEN environment variable must be set for --neptune to work."
     
     # Transform args
     run_args.device = flame.best_device() if run_args.device == "auto" else torch.device(run_args.device)
@@ -67,8 +72,8 @@ if __name__ == '__main__':
     tokenizer = GoScannerTokenizer.from_file(args.tokenizer)
 
     # Load the dataset
-    dataset = DataLoader(
-        CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_region, s3_args.s3_cache_dir, tp_args.dataset),
+    dataset = DataPipeline(
+        CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset),
         ParquetExtractorWithTokenization(tokenizer.encode),
         StridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, 5),
     )

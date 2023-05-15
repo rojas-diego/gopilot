@@ -17,6 +17,24 @@ go build -o tokenizer/libgotok.dll -buildmode=c-shared ./tokenizer/libgotok.go
 
 ## Usage
 
+### Pre-Training
+
+A CUDA Docker image is made available. Here are the required parameters.
+
+```bash
+docker run \
+    -d \
+    --gpus '"device=0"' \
+    --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+    --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+    --env AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
+    --env NEPTUNE_API_TOKEN=$NEPTUNE_API_TOKEN \
+    --cpus 8 \
+    --memory 24g \
+    ghcr.io/rojas-diego/gopilot:latest \
+    python train.py --model model/config/gopilot.yml --tokenizer tokenizer/config/go-scanner-bpe-base.json ----dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 64 --batch-size 8 --warmup 1000 --lr 0.001 --training-budget-secs 3600 --device cuda --neptune --compile
+```
+
 ### Inference Server
 
 The inference server is a simple HTTP server that hosts the model and exposes a `/complete` endpoint to submit samples to auto-complete.

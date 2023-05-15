@@ -6,13 +6,12 @@ import boto3
 import shutil
 
 class PreprocessingJob:
-    def __init__(self, bucket: str, region: str, cache_dir: str, source_prefix: str | None, dest_prefix: str):
+    def __init__(self, bucket: str, cache_dir: str, source_prefix: str | None, dest_prefix: str):
         self._bucket_name = bucket
-        self._region = region
         self._cache_dir = cache_dir
         self._source_prefix = source_prefix
         self._dest_prefix = dest_prefix
-        self._bucket = boto3.resource('s3', region_name=region).Bucket(bucket)
+        self._bucket = boto3.resource('s3').Bucket(bucket)
         # Check that {bucket}/{source-prefix} exists
         if not self._bucket:
             raise Exception(f"Bucket '{bucket}' does not exist")

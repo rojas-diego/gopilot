@@ -15,13 +15,12 @@ class DataSource(ABC):
         pass
 
 class CachedS3DataSource(DataSource):
-    def __init__(self, bucket: str, region: str, cache_dir: str, prefix: str, file_lambda: Callable = lambda x: x.endswith(".parquet"), shuffle: bool = True):
-        self.region = region
+    def __init__(self, bucket: str, cache_dir: str, prefix: str, file_lambda: Callable = lambda x: x.endswith(".parquet"), shuffle: bool = True):
         self.cache_dir = cache_dir
         self.prefix = prefix
         self.file_lambda = file_lambda
         self.shuffle = shuffle
-        self.bucket = boto3.resource('s3', region_name=self.region).Bucket(bucket)
+        self.bucket = boto3.resource('s3').Bucket(bucket)
         # Ensure the cache directory exists
         os.makedirs(os.path.dirname(f"{self.cache_dir}/{self.prefix}"), exist_ok=True)
 

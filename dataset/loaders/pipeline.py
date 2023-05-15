@@ -3,7 +3,7 @@ from .extractors import Extractor
 from .sources import DataSource
 
 
-class DataLoader:
+class DataPipeline:
     def __init__(self, data_source: DataSource, extractor: Extractor, batcher: Batcher):
         self.data_source = data_source
         self.extractor = extractor

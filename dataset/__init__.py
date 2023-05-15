@@ -5,4 +5,4 @@ from .preprocessing.upload import UploadTheStackJob
 from .loaders.sources import CachedS3DataSource, LocalGlobDataSource
 from .loaders.batchers import StridedWindowBatcher
 from .loaders.extractors import ParquetExtractorWithTokenization
-from .loaders.loader import DataLoader
+from .loaders.pipeline import DataPipeline
