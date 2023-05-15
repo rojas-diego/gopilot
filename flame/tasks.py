@@ -5,14 +5,13 @@ import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
-from torch.nn.utils.clip_grad import clip_grad_norm_ as torch_clip_grad_norm
 
 from flame.utils import Metric
 
 from .utils import Metric
 
 
-class LearningTask(ABC):
+class Task(ABC):
     @abstractmethod
     def train(self, device: torch.device):
         """Called at the start of training."""
@@ -40,7 +39,7 @@ class LearningTask(ABC):
         pass
 
 
-class SimpleTorchTask(LearningTask):
+class SimpleTask(Task):
     def __init__(self, model: Module, criterion: Module, optimizer: Optimizer, scheduler: LRScheduler | None = None):
         self.model = model
         self.criterion = criterion

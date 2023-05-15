@@ -13,7 +13,7 @@ from .debug import TrainingSampler
 from .model import GopilotModel
 
 
-class GopilotTask(flame.SimpleTorchTask):
+class GopilotTask(flame.SimpleTask):
     """
     Expects a single tensor of padded sequences of shape `(batch_size,
     max_sequence_len+1)`. Each sequence consist of a torch long tensor of token

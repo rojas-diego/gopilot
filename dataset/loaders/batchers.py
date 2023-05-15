@@ -3,12 +3,11 @@ from ast import List
 import random
 from typing import Iterable, Iterator, List
 
-import pandas
 import torch
 
 
 class Batcher(ABC):
-    """Given a DataFrame, forms batches of data."""
+    """Generates batches of data from samples."""
     @abstractmethod
     def batches(self, samples: Iterable) -> Iterable:
         pass

@@ -24,13 +24,5 @@ class ParquetExtractorWithTokenization(Extractor):
             df = pandas.read_parquet(filepath)
             if self.shuffle:
                 df = df.sample(frac=1)
-            for index, row in df.iterrows():
-                # file_name = ""
-                # repo_name = ""
-                # try:
-                #     file_name = os.path.basename(row['max_stars_repo_path'])
-                #     repo_name = row['max_stars_repo_name']
-                # except Exception:
-                #     pass
-                # logging.info(f"Extracting '{file_name}' from '{repo_name}'")
+            for _, row in df.iterrows():
                 yield self.transform(row["content"])

@@ -40,9 +40,9 @@ class TrainingSampler:
             idx = torch.randint(0, inputs.shape[0], (1,)).item()
 
             # Detokenize the inputs, targets and outputs
-            sample_input_sequence = metaspace_cleanup(self.tokenizer.decode(inputs[idx,:].tolist()))
-            sample_target_sequence = metaspace_cleanup(self.tokenizer.decode(targets[idx,:].tolist()))
-            sample_output_sequence = metaspace_cleanup(self.tokenizer.decode(outputs[idx,:].tolist()))
+            sample_input_sequence = self.tokenizer.decode(inputs[idx,:].tolist())
+            sample_target_sequence = self.tokenizer.decode(targets[idx,:].tolist())
+            sample_output_sequence = self.tokenizer.decode(outputs[idx,:].tolist())
 
             self.last_sample_batch = 0
             self.last_sample_ts = time.time()

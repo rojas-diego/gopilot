@@ -7,7 +7,7 @@ from typing import Iterable, List
 import torch
 import tqdm
 
-from .tasks import LearningTask
+from .tasks import Task
 from .utils import Metric, MetricsStore
 
 
@@ -54,7 +54,7 @@ class Trainer:
 
     def __init__(
         self,
-        task: LearningTask,
+        task: Task,
         device: str | torch.device,
         handlers: List = [],
     ):

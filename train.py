@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+from dataclasses import dataclass
 
 import torch
 from torch.nn import CrossEntropyLoss
@@ -10,9 +11,41 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 
 import flame
-from dataset import DataPipeline, CachedS3DataSource, ParquetExtractorWithTokenization, StridedWindowBatcher
+from dataset import (CachedS3DataSource, DataPipeline, ParquetExtractorWithTokenization, StridedWindowBatcher)
 from model import GopilotModel, GopilotTask
 from tokenizer import GoScannerTokenizer
+
+@dataclass
+class Args:
+    model: str
+    tokenizer: str
+
+@dataclass
+class TrainingParametersArgs:
+    gradient_accumulation_steps: int
+    batch_size: int
+    dropout: float
+    weight_decay: float
+    warmup: int
+    lr: float
+    epsilon: float
+    training_budget_secs: int
+    clip_gradients: float
+    dataset: str
+
+@dataclass
+class S3Args:
+    s3_bucket: str
+    s3_cache_dir: str
+
+@dataclass
+class RunArgs:
+    device: str | torch.device
+    progress: bool
+    verbose: bool
+    neptune: bool
+    compile: bool
+    checkpoints_dir: str
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -23,7 +56,7 @@ if __name__ == '__main__':
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
-    tp_parser.add_argument('--gradient-accumulation-steps', type=int, help='Number of gradient accumulation steps (Default 1, no accumulation).')
+    tp_parser.add_argument('--gradient-accumulation-steps', type=int, default=1, help='Number of gradient accumulation steps (Default 1, no accumulation).')
     tp_parser.add_argument('--batch-size', type=int, default=64, help='Batch size.')
     tp_parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability.')
     tp_parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay value.')
@@ -37,7 +70,7 @@ if __name__ == '__main__':
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
     s3_parser.add_argument('--s3-bucket', type=str, default="gopilot", help='S3 bucket name.')
-    s3_parser.add_argument('--cache-dir', type=str, default=".cache", help='Local cache directory.')
+    s3_parser.add_argument('--s3-cache-dir', type=str, default=".cache", help='Local cache directory.')
     s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
@@ -49,14 +82,18 @@ if __name__ == '__main__':
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
     run_args = run_parser.parse_args(remaining_args)
 
+    args = Args(**vars(args))
+    tp_args = TrainingParametersArgs(**vars(tp_args))
+    s3_args = S3Args(**vars(s3_args))
+    run_args = RunArgs(**vars(run_args))
+
     assert "AWS_DEFAULT_REGION" in os.environ, "AWS_DEFAULT_REGION environment variable must be set."
     assert "AWS_ACCESS_KEY_ID" in os.environ, "AWS_ACCESS_KEY_ID environment variable must be set."
     assert "AWS_SECRET_ACCESS_KEY" in os.environ, "AWS_SECRET_ACCESS_KEY environment variable must be set."
-    assert "NEPTUNE_API_TOKEN" in os.environ, "NEPTUNE_API_TOKEN environment variable must be set for --neptune to work."
-    
+    assert "NEPTUNE_API_TOKEN" in os.environ or not run_args.neptune, "NEPTUNE_API_TOKEN environment variable must be set for --neptune to work."
+
     # Transform args
     run_args.device = flame.best_device() if run_args.device == "auto" else torch.device(run_args.device)
-    tp_args.gradient_accumulation_steps = 1 if tp_args.gradient_accumulation_steps is None else tp_args.gradient_accumulation_steps
 
     # Load the model
     model = GopilotModel.from_config_file(args.model, dropout=tp_args.dropout)
@@ -64,8 +101,7 @@ if __name__ == '__main__':
 
     # Optionally compile model
     if run_args.compile:
-        assert args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
-        logging.info("Compiling model using 'inductor' backend")
+        assert run_args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
         model: GopilotModel = torch.compile(model, backend="inductor") # type: ignore
 
     # Load the tokenizer

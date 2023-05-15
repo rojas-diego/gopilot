@@ -1,9 +1,11 @@
 channels:
+  - "nvidia"
   - "pytorch-nightly"
   - "conda-forge"
 dependencies:
   - python==3.10
   - pytorch
+  - pytorch-cuda==12.1
   # HuggingFace
   - datasets==2.12.0
   - tokenizers==0.13.3
