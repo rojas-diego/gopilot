@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8-cudnn8-runtime-ubuntu22.04
+FROM nvcr.io/nvidia/pytorch:23.04-py3
 
 # Install some necessary dependencies
 RUN apt-get update && apt-get install -y \
@@ -15,24 +15,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up the environment for conda
-ENV CONDA_DIR /opt/conda
-ENV PATH $CONDA_DIR/bin:$PATH
-
-# Install Miniconda
-RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    bash Miniconda3-latest-Linux-x86_64.sh -p $CONDA_DIR -b && \
-    rm Miniconda3-latest-Linux-x86_64.sh
-
-# Update conda itself
-RUN conda update -n base conda
-
-# Copy your environment.yml file
-COPY environment_cuda.yml .
-
-# Install the dependencies from the environment.yml file
-RUN conda env update --name base --file environment_cuda.yml && \
-    conda clean --all --yes
+# Install the necessary python packages
+RUN pip install --upgrade pip
+RUN pip install datasets==2.12.0 tokenizers==0.13.3 transformers==4.29.1 pandas==2.0.1 pyarrow==10.0.1 neptune==1.0.2 tqdm==4.65.0 boto3==1.26.131
 
 # Install Golang
 ENV GOLANG_VERSION 1.18.1

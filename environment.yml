@@ -1,9 +1,9 @@
+# For local development only.
 channels:
-  - "pytorch-nightly"
+  - "pytorch"
   - "conda-forge"
 dependencies:
-  - python==3.10
-  - pytorch
+  - pytorch==2.0.1
   # HuggingFace
   - datasets==2.12.0
   - tokenizers==0.13.3
