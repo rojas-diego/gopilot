@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 import time
-from typing import List, Union
+from typing import List, Optional, Union
 
 from torch.profiler import profile
 
@@ -89,7 +89,7 @@ class LoggingHandler:
             metrics_string = self._metrics_to_string(None, metrics)
             logging.info(f"Epoch {epoch_idx+1:3} | Batch {batch_idx+1:5} | {metrics_string}")
 
-    def _metrics_to_string(self, prefix: str | None, metrics: List[Metric]) -> str:
+    def _metrics_to_string(self, prefix: Optional[str], metrics: List[Metric]) -> str:
         if prefix is None:
             return ", ".join([f"{metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics])
         return ", ".join([f"{prefix} {metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics])
