@@ -51,6 +51,7 @@ class RunArgs:
     neptune: bool
     compile: bool
     checkpoints_dir: str
+    remote_checkpoints: bool
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -87,6 +88,7 @@ if __name__ == '__main__':
     run_parser.add_argument('--neptune', default=False, action='store_true', help='Enable Neptune integration.')
     run_parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
+    run_parser.add_argument('--remote-checkpoints', default=False, action='store_true', help='Enable remote checkpoints.')
     run_args = run_parser.parse_args(remaining_args)
 
     args = Args(**vars(args))
@@ -141,7 +143,16 @@ if __name__ == '__main__':
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
     trainer.register_handlers(
         # Checkpoint every 1024 steps or every 5 minutes, whichever comes first
-        flame.CheckpointingHandler(run_args.checkpoints_dir, filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}", max_step_interval=1024, max_time_interval_sec=60*5),
+        flame.CheckpointingHandler(
+            run_args.checkpoints_dir,
+            filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
+            max_files=3,
+            max_step_interval=1024,
+            max_time_interval_sec=60*30,
+            # Optionally save the checkpoints to S3
+            remote_bucket=s3_args.s3_bucket if run_args.remote_checkpoints else None,
+            remote_prefix=f"checkpoints/{tracker.get_run_id()}" if run_args.remote_checkpoints else None,
+        ),
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=False),
         flame.TrackingHandler(tracker),
     )

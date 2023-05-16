@@ -1,14 +1,17 @@
 import datetime
 import logging
 import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
+import boto3
 from torch.profiler import profile
 
 from .trackers import NeptuneTracker, NoopTracker
-from .utils import Metric
 from .trainer import Trainer
+from .utils import Metric
 
 
 class TrackingHandler:
@@ -98,12 +101,17 @@ class LoggingHandler:
 
 
 class CheckpointingHandler:
-    def __init__(self, checkpoints_dir: str, filename_prefix: str, max_epoch_interval: int = 1, max_step_interval: int = 120, max_time_interval_sec: int = 60*2):
+    def __init__(self, checkpoints_dir: str, filename_prefix: str, max_files: int = 1, max_epoch_interval: int = 1, max_step_interval: int = 120, max_time_interval_sec: int = 60*2, remote_bucket: Optional[str] = None, remote_prefix: Optional[str] = None):
         self.checkpoints_dir = checkpoints_dir
         self.filename_prefix = filename_prefix
+        self.max_files = max_files
         self.max_step_interval = max_step_interval
         self.max_epoch_interval = max_epoch_interval
         self.max_time_interval_sec = max_time_interval_sec
+        self.remote_bucket = boto3.resource("s3").Bucket(remote_bucket) if remote_bucket else None
+        self.remote_prefix = remote_prefix
+        self.remote_uploader = ThreadPoolExecutor(max_workers=1) if self.remote_bucket else None
+        self.remote_active_uploads = {}
         self.files_written = []
         self.last_checkpoint_ts = time.time()
         self.last_checkpoint_epoch = 0
@@ -111,6 +119,8 @@ class CheckpointingHandler:
         # Ensure the checkpoints directory exists
         os.makedirs(self.checkpoints_dir, exist_ok=True)
         logging.info(f"Checkpointing enabled. Checkpoints will be saved to {self.checkpoints_dir}")
+        if self.remote_bucket:
+            logging.info(f"Remote checkpointing enabled. Checkpoints will be uploaded to s3://{self.remote_bucket.name}/{self.remote_prefix}")
 
     def on_step(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
         if self._should_checkpoint(epoch_idx, batch_idx, step_idx):
@@ -126,12 +136,51 @@ class CheckpointingHandler:
         self.last_checkpoint_epoch = epoch_idx
         self.last_checkpoint_step = step_idx
         trainer.task.checkpoint(location, epoch_idx, batch_idx, step_idx, metrics)
+
+        logging.info(f"Saved checkpoint to '{location}'")
+        self.files_written.append(location)
+
+        if self.remote_bucket and self.remote_prefix and self.remote_uploader:
+            remote_location = os.path.join(self.remote_prefix, os.path.basename(location))
+
+            def upload_file(location: str, remote_location: str):
+                if not self.remote_bucket or not self.remote_prefix:
+                    return
+                try:
+                    logging.info(f"Uploading checkpoint to s3://{self.remote_bucket.name}/{remote_location} in the background")
+                    self.remote_bucket.upload_file(location, remote_location)
+                except Exception as e:
+                    logging.warning(f"Failed to upload checkpoint to s3://{self.remote_bucket.name}/{remote_location}: {e}")
+                finally:
+                    self.remote_active_uploads[location].set()
+                    logging.info(f"Finished uploading checkpoint to s3://{self.remote_bucket.name}/{remote_location}")
+
+            self.remote_active_uploads[location] = threading.Event()
+            self.remote_uploader.submit(upload_file, location, remote_location)
+
         # Cleanup old checkpoints
-        for file in self.files_written:
-            if os.path.exists(file):
-                os.remove(file)
-        self.files_written = [location]
-        logging.info(f"Saved model to '{location}'")
+        while len(self.files_written) > self.max_files:
+            logging.info(f"Deleting old checkpoint '{self.files_written[0]}'")
+            file_to_delete = self.files_written.pop(0)
+            if file_to_delete in self.remote_active_uploads:
+                # If the file is still being uploaded, wait for the upload to finish
+                logging.info(f"Waiting for remote upload of '{file_to_delete}' to finish")
+                self.remote_active_uploads[file_to_delete].wait()
+                del self.remote_active_uploads[file_to_delete]
+            if os.path.exists(file_to_delete):
+                try:
+                    os.remove(file_to_delete)
+                    logging.info(f"Deleted local checkpoint '{file_to_delete}'")
+                except Exception as e:
+                    logging.warning(f"Failed to delete local checkpoint '{file_to_delete}': {e}")
+            if self.remote_bucket and self.remote_prefix:
+                # Delete the remote checkpoint if it exists
+                remote_location = os.path.join(self.remote_prefix, os.path.basename(file_to_delete))
+                try:
+                    self.remote_bucket.Object(remote_location).delete()
+                    logging.info(f"Deleted remote checkpoint s3://{self.remote_bucket.name}/{remote_location}")
+                except Exception as e:
+                    logging.warning(f"Failed to delete remote checkpoint s3://{self.remote_bucket.name}/{remote_location}: {e}")
 
     def _make_filename_prefix(self, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]) -> str:
         metrics_dict = {metric.name: metric.value for metric in metrics}
