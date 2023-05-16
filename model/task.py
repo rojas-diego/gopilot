@@ -19,7 +19,7 @@ class GopilotTask(flame.SimpleTask):
     def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, scheduler: Optional[LRScheduler] = None, 
                  clip_gradients: Optional[float] = None, sampler: Optional[TrainingSampler] = None, 
                  precision: torch.dtype = torch.float32):
-        super().__init__(model, CrossEntropyLoss(reduce="none"), optimizer, scheduler)
+        super().__init__(model, CrossEntropyLoss(reduction="none"), optimizer, scheduler)
         self.pad_token_id = pad_token_id
         self.clip_gradients = clip_gradients
         self.sampler = sampler
