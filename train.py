@@ -32,6 +32,7 @@ class TrainingParametersArgs:
     epsilon: float
     training_budget_secs: int
     clip_gradients: float
+    precision: Union[str, torch.dtype]
     dataset: str
 
 @dataclass
@@ -66,6 +67,7 @@ if __name__ == '__main__':
     tp_parser.add_argument('--epsilon', type=float, default=10e-12, help='AdamW epsilon parameter.')
     tp_parser.add_argument('--training-budget-secs', type=int, default=60*60, help='Training budget in seconds to define the learning rate schedule (Default 1h).')
     tp_parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
+    tp_parser.add_argument('--precision', type=str, default="fp32", choices=["fp32", "fp16"], help='Precision to use for training.')
     tp_parser.add_argument('--dataset', type=str, required=True, help='Prefix of the remote dataset.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
@@ -95,6 +97,7 @@ if __name__ == '__main__':
 
     # Transform args
     run_args.device = flame.best_device() if run_args.device == "auto" else torch.device(run_args.device)
+    tp_args.precision = torch.float32 if tp_args.precision == "fp32" else torch.float16
 
     # Load the model
     model = GopilotModel.from_config_file(args.model, dropout=tp_args.dropout)
@@ -126,7 +129,7 @@ if __name__ == '__main__':
     criterion = CrossEntropyLoss()
 
     # Configure trainer
-    trainer = flame.Trainer(GopilotTask(model, criterion, optimizer, scheduler, clip_gradients=tp_args.clip_gradients), run_args.device)
+    trainer = flame.Trainer(GopilotTask(model, criterion, optimizer, scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
     trainer.register_handlers(
         # Checkpoint every 1024 steps or every 5 minutes, whichever comes first
         flame.CheckpointingHandler(run_args.checkpoints_dir, filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}", max_step_interval=1024, max_time_interval_sec=60*5),
