@@ -32,7 +32,7 @@ docker run \
     --cpus 8 \
     --memory 24g \
     ghcr.io/rojas-diego/gopilot:latest \
-    python train.py --model model/config/gopilot.yml --tokenizer tokenizer/config/go-scanner-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 64 --batch-size 8 --warmup 1000 --lr 0.001 --training-budget-secs 3600 --device cuda --neptune --compile
+    python train.py --model model/config/gopilot.yml --tokenizer tokenizer/config/go-scanner-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 64 --batch-size 8 --warmup 1000 --lr 0.00025 --training-budget-secs 21600 --device cuda --neptune --compile --precision fp16
 ```
 
 ### Inference Server

@@ -23,9 +23,9 @@ class NeptuneTracker:
         self.run = neptune.init_run(
             project=project if project is not None else self._getenv("NEPTUNE_PROJECT"),
             api_token=api_token if api_token is not None else self._getenv("NEPTUNE_API_TOKEN"),
-            capture_stderr=False,
-            capture_stdout=False,
-            source_files=["*.py"])
+            capture_stderr=True,
+            capture_stdout=True,
+            source_files=["./**/*.py"])
         logging.info(f"Run ID: {self.get_run_id()}")
 
     def _getenv(self, key: str):

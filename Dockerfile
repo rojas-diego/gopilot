@@ -15,6 +15,7 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && DEBIAN_FRONTEND=
     zlib1g-dev \
     libjpeg-dev \
     ca-certificates \
+    tmux \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the necessary python packages
