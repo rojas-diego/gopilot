@@ -3,10 +3,11 @@ from typing import List, Optional
 
 import torch
 from torch.cuda.amp import GradScaler, autocast
-from torch.nn import Module
+from torch.nn import CrossEntropyLoss
 from torch.nn.utils.clip_grad import clip_grad_norm_ as torch_clip_grad_norm
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 
 import flame
 
@@ -15,10 +16,11 @@ from .model import GopilotModel
 
 
 class GopilotTask(flame.SimpleTask):
-    def __init__(self, model: GopilotModel, criterion: Module, optimizer: Optimizer, scheduler: Optional[LRScheduler] = None, 
+    def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, scheduler: Optional[LRScheduler] = None, 
                  clip_gradients: Optional[float] = None, sampler: Optional[TrainingSampler] = None, 
                  precision: torch.dtype = torch.float32):
-        super().__init__(model, criterion, optimizer, scheduler)
+        super().__init__(model, CrossEntropyLoss(reduce="none"), optimizer, scheduler)
+        self.pad_token_id = pad_token_id
         self.clip_gradients = clip_gradients
         self.sampler = sampler
         self.step_loss = []
@@ -33,18 +35,26 @@ class GopilotTask(flame.SimpleTask):
         batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
 
         # Shift the batch by 1 position to create the target batch
-        inputs = batch[:, :-1] 
-        targets = batch[:, 1:] 
+        inputs = batch[:, :-1]
+        targets = batch[:, 1:]
+
+        # Create attention mask
+        attention_mask = (inputs != self.pad_token_id).long()
 
         with autocast(self.precision == torch.float16):
-            outputs = self.model(inputs)
-            logits = outputs.logits 
-            logits = logits.view(-1, logits.size(-1)) 
-            targets = targets.reshape(-1) 
+            outputs: CausalLMOutputWithCrossAttentions = self.model(inputs, attention_mask=attention_mask)
+            logits = outputs.logits
 
-            # Calculate the loss for the entire batch
-            loss: torch.Tensor = self.criterion(logits, targets)
-        
+            # Calculate the masked loss
+            loss_mask = (targets != self.pad_token_id).float()
+            loss = self.criterion(logits.view(-1, logits.size(-1)), targets.reshape(-1))
+            masked_loss = loss * loss_mask.view(-1)
+            total_loss = torch.sum(masked_loss)
+            num_active_elements = torch.sum(loss_mask)
+            if num_active_elements == 0:
+                num_active_elements = torch.tensor(1e-8)
+            loss = total_loss / num_active_elements
+
         loss_value = loss.item()
         self.step_loss.append(loss_value)
 
@@ -58,6 +68,7 @@ class GopilotTask(flame.SimpleTask):
         return [
             flame.Metric("loss", loss_value, weight=batch_size * sequence_length),
             flame.Metric("perplexity", math.exp(min(loss_value, 100)), weight=batch_size * sequence_length),
+            flame.Metric("tokens_ingested", batch_size * sequence_length)
         ]
 
     def step(self, device: torch.device) -> List[flame.Metric]:
