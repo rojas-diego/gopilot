@@ -34,6 +34,7 @@ class CachedS3DataSource(DataSource):
             if self.file_lambda(remote_file.key):
                 local_file = f"{self.cache_dir}/{remote_file.key}"
                 if not os.path.exists(local_file):
+                    os.makedirs(os.path.dirname(local_file), exist_ok=True)
                     logging.info(f"Downloading s3://{self.bucket.name}/{remote_file.key} to {local_file}")
                     self.bucket.download_file(remote_file.key, f"{self.cache_dir}/{remote_file.key}")
                 else:
