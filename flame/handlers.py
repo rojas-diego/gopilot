@@ -19,32 +19,34 @@ class TrackingHandler:
 
     def on_step(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
         if self._on_step:
-            metrics = [Metric(f"train/step/{metric.name}", metric.value) for metric in metrics]
+            metrics = [Metric(f"train/step/{metric.name}", metric.value, step=metric.step) for metric in metrics]
             self.tracker.track_metrics(metrics)
+        self.tracker.track_values([Metric("train/step", step_idx)])
 
     def on_train_batch_end(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
         if self._on_batch:
-            metrics = [Metric(f"train/batch/{metric.name}", metric.value) for metric in metrics]
+            metrics = [Metric(f"train/batch/{metric.name}", metric.value, step=metric.step) for metric in metrics]
             self.tracker.track_metrics(metrics)
+        self.tracker.track_values([Metric("train/batch", batch_idx)])
 
     def on_epoch_end(self, trainer: Trainer, epoch_idx: int):
-        self.tracker.track_values([Metric("epoch", epoch_idx)])
+        self.tracker.track_values([Metric("train/epoch", epoch_idx)])
 
     def on_validation_end(self, trainer: Trainer, epoch_idx: int, metrics: List[Metric]):
-        metrics = [Metric(f"validation/{metric.name}", metric.value) for metric in metrics]
+        metrics = [Metric(f"validation/{metric.name}", metric.value, step=metric.step) for metric in metrics]
         self.tracker.track_values(metrics)
 
     def on_validation_batch_end(self, trainer: Trainer, epoch_idx: int, batch_idx: int, metrics: List[Metric]):
         if self._on_batch:
-            metrics = [Metric(f"validation/batch/{metric.name}", metric.value) for metric in metrics]
+            metrics = [Metric(f"validation/batch/{metric.name}", metric.value, step=metric.step) for metric in metrics]
             self.tracker.track_metrics(metrics)
 
     def on_test_batch_end(self, trainer: Trainer, batch_idx: int, metrics: List[Metric]):
-        metrics = [Metric(f"test/batch/{metric.name}", metric.value) for metric in metrics]
+        metrics = [Metric(f"test/batch/{metric.name}", metric.value, step=metric.step) for metric in metrics]
         self.tracker.track_metrics(metrics)
 
     def on_test_end(self, trainer: Trainer, metrics: List[Metric]):
-        metrics = [Metric(f"test/{metric.name}", metric.value) for metric in metrics]
+        metrics = [Metric(f"test/{metric.name}", metric.value, step=metric.step) for metric in metrics]
         self.tracker.track_values(metrics)
 
 

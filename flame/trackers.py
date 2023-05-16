@@ -39,7 +39,7 @@ class NeptuneTracker:
 
     def track_metrics(self, metrics: List[Metric]):
         for metric in metrics:
-            self.run[metric.name].append(metric.value)
+            self.run[metric.name].append(metric.value, step=float(metric.step) if metric.step is not None else None)
 
     def track_values(self, metrics: List[Metric]):
         for metric in metrics:

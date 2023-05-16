@@ -1,4 +1,3 @@
-import json
 from transformers import GPTBigCodeConfig, GPTBigCodeForCausalLM
 from dataclasses import dataclass
 

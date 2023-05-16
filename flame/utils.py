@@ -1,16 +1,17 @@
 import logging
 import time
-from typing import Any, List
+from typing import Any, List, Optional
 import torch
 from torch.nn import Module
 import torch.nn as nn
 
 
 class Metric:
-    def __init__(self, name: str, value: float, weight: int = 1):
+    def __init__(self, name: str, value: float, weight: int = 1, step: Optional[int] = None):
         self.name = name
         self.value = value
         self.weight = weight
+        self.step = step
 
     def __repr__(self):
         return f"{self.name}: {self.value:.4f}"

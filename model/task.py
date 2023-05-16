@@ -26,6 +26,7 @@ class GopilotTask(flame.SimpleTask):
         self.step_loss = []
         self.precision = precision
         self.scaler = GradScaler() if precision == torch.float16 else None
+        self.total_tokens_ingested = 0
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
         if backprop:
@@ -65,10 +66,12 @@ class GopilotTask(flame.SimpleTask):
             else:
                 loss.backward()
 
+        self.total_tokens_ingested += batch_size * sequence_length
+
         return [
-            flame.Metric("loss", loss_value, weight=batch_size * sequence_length),
-            flame.Metric("perplexity", math.exp(min(loss_value, 100)), weight=batch_size * sequence_length),
-            flame.Metric("tokens_ingested", batch_size * sequence_length)
+            flame.Metric("loss", loss_value, weight=batch_size * sequence_length, step=self.total_tokens_ingested),
+            flame.Metric("perplexity", math.exp(min(loss_value, 100)), weight=batch_size * sequence_length, step=self.total_tokens_ingested),
+            flame.Metric("total_tokens_ingested", self.total_tokens_ingested)
         ]
 
     def step(self, device: torch.device) -> List[flame.Metric]:
@@ -91,7 +94,7 @@ class GopilotTask(flame.SimpleTask):
         self.step_loss = []
 
         return [
-            flame.Metric("loss", step_loss_value, weight=num_losses),
-            flame.Metric("perplexity", math.exp(min(step_loss_value, 100)), weight=num_losses),
+            flame.Metric("loss", step_loss_value, step=self.total_tokens_ingested),
+            flame.Metric("perplexity", math.exp(min(step_loss_value, 100)), step=self.total_tokens_ingested),
             flame.Metric("lr", self.optimizer.param_groups[0]["lr"]),
         ]
