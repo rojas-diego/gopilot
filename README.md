@@ -32,7 +32,7 @@ docker run \
     --cpus 8 \
     --memory 24g \
     ghcr.io/rojas-diego/gopilot:latest \
-    python train.py --model model/config/gopilot.yml --tokenizer tokenizer/config/go-scanner-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 64 --batch-size 8 --warmup 1000 --lr 0.00025 --training-budget-secs 21600 --device cuda --neptune --compile --precision fp16 --checkpoints-dir /checkpoints --remote-checkpoints
+    python train.py --model-cf model/config/gopilot.yml --tokenizer-cf tokenizer/config/go-scanner-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 32 --batch-size 16 --warmup 1000 --lr 0.00025 --training-budget-secs 21600 --device cuda --neptune --compile --precision fp16 --checkpoints-dir /checkpoints --remote-checkpoints
 ```
 
 ### Inference Server
@@ -45,14 +45,15 @@ python inference_server.py --help
 
 ### VSCode Extension
 
-To use the VSCode extension you must run up the inference server and load the VSCode extension by running the VSCode command "Developer: Install Extension From Location" and specifying the `vscode` folder. Then, you can invoke the "Gopilot: Auto Complete Code" command.
+Check out the Gopilot VSCode extension [here](https://github.com/rojas-diego/gopilot-vscode-ext). Works with the inference server.
 
 ## Repository Structure
 
-| Location                      | Description                                                                 |
-| ----------------------------- | --------------------------------------------------------------------------- |
-| `flame`                       | Python library to simplify training deep learning models using PyTorch      |
-| `dataset`                     | The gopilot Transformer model and objectives                                |
-| `model`                       | Implementation of a Go specific tokenizer                                   |
-| `tokenizer`                   | Processing jobs and utilities for the dataset used for pre-training Gopilot |
-| `environment_{cpu\|cuda}.yml` | List of dependencies. Install with `conda` or `mamba`.                      |
+| Location           | Description                                                                 |
+| ------------------ | --------------------------------------------------------------------------- |
+| `dataset`          | The gopilot Transformer model and objectives                                |
+| `model`            | Implementation of a Go specific tokenizer                                   |
+| `tokenizer`        | Processing jobs and utilities for the dataset used for pre-training Gopilot |
+| `flame`            | Python library to simplify training deep learning models using PyTorch      |
+| `requirements.txt` | Production dependencies.                                                    |
+| `environment.yml`  | Development dependencies. Install with `conda`.                             |

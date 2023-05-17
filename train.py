@@ -3,11 +3,11 @@
 import argparse
 import logging
 import os
-from dataclasses import dataclass
 import random
+from dataclasses import dataclass
 from typing import Union
-import numpy as np
 
+import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
@@ -16,11 +16,13 @@ from torch.optim.lr_scheduler import LambdaLR
 import flame
 from dataset import (CachedS3DataSource, DataPipeline, ParquetExtractorWithTokenization, VariableLengthStridedWindowBatcher)
 from model import GopilotModel, GopilotTask
-from tokenizer import GoScannerTokenizer
+from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer
+
 
 @dataclass
 class Args:
-    model: str
+    model_cf: str
+    tokenizer_cf: str
     tokenizer: str
 
 @dataclass
@@ -57,8 +59,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     # General arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, required=True, help='Path to the model configuration file.')
-    parser.add_argument('--tokenizer', type=str, required=True, help='Path to the tokenizer configuration file.')
+    parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
+    parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
+    parser.add_argument('--tokenizer', type=str, default="GoScanner", help='Name of the tokenizer to use.', choices=["GoScanner", "HuggingFace"])
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
@@ -111,7 +114,7 @@ if __name__ == '__main__':
     tp_args.precision = torch.float32 if tp_args.precision == "fp32" else torch.float16
 
     # Load the model
-    model = GopilotModel.from_config_file(args.model, dropout=tp_args.dropout)
+    model = GopilotModel.from_config_file(args.model_cf, dropout=tp_args.dropout)
     flame.log_model_summary(model)
 
     # Optionally compile model
@@ -120,19 +123,22 @@ if __name__ == '__main__':
         model: GopilotModel = torch.compile(model, backend="inductor") # type: ignore
 
     # Load the tokenizer
-    tokenizer = GoScannerTokenizer.from_file(args.tokenizer)
-
-    # Load the dataset
-    dataset = DataPipeline(
-        CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset),
-        ParquetExtractorWithTokenization(tokenizer.encode),
-        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]")),
-    )
+    if args.tokenizer == "GoScanner":
+        tokenizer = GoScannerTokenizer.from_file(args.tokenizer_cf)
+    else:
+        tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
     # Configure the tracker
     tracker = flame.NeptuneTracker("rojasdiegopro/gopilot") if (flame.neptune_is_available() and run_args.neptune) else flame.NoopTracker()
     tracker.track_hyperparameters(vars(tp_args))
     tracker.track_hyperparameters(vars(model.get_config()))
+
+    # Load the dataset
+    dataset = DataPipeline(
+        CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset, tracker=tracker),
+        ParquetExtractorWithTokenization(tokenizer.encode, tracker=tracker),
+        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(1, 50)),
+    )
 
     # Configure optimizer, learning rate scheduler
     optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.98), eps=tp_args.epsilon) # TODO: betas should be made configurable

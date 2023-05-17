@@ -3,8 +3,8 @@ from typing import Iterable, List
 
 from tokenizers import Tokenizer as _HuggingFaceTokenizer
 from tokenizers.models import BPE
-from tokenizers.pre_tokenizers import ByteLevel as ByteLevelEncoder
-from tokenizers.decoders import ByteLevel as ByteLevelDecoder
+from tokenizers.pre_tokenizers import ByteLevel as ByteLevelEncoder, Metaspace as MetaspaceEncoder
+from tokenizers.decoders import ByteLevel as ByteLevelDecoder, Metaspace as MetaspaceDecoder
 from tokenizers.trainers import BpeTrainer
 
 from .scan import go_scanner_id_to_token_name, go_scanner_scan, go_scanner_id_to_token_literal
@@ -100,8 +100,8 @@ class GoScannerTokenizer(Tokenizer):
 
     def __init__(self):
         self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True))
-        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
-        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
+        self.tokenizer.pre_tokenizer = MetaspaceEncoder() # type: ignore
+        self.tokenizer.decoder = MetaspaceDecoder() # type: ignore
 
     def encode(self, sequence: str) -> List[int]:
         scan_result = go_scanner_scan(sequence)

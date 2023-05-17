@@ -23,27 +23,27 @@ class VariableLengthStridedWindowBatcher(Batcher):
 
     def batches(self, dataset_samples: Iterator[List[int]]) -> Iterable:
         """Yields batches of data from a DataFrame."""
-        tokens_chunks = []
-        batche_samples = []
-        for tokens in dataset_samples:
-            # Accumulate at least 100 times batch_size lists of tokens
-            tokens_chunks.append(tokens)
-            if len(tokens_chunks) < 100*self.batch_size:
+        many_token_sequences = []
+        batch_of_batches = []
+        for token_sequence in dataset_samples:
+            # Accumulate at least 1024 times batch_size lists of tokens
+            many_token_sequences.append(token_sequence)
+            if len(many_token_sequences) < 1024*self.batch_size:
                 continue
             # For each chunk of tokens, form batches of sequences
-            for tokens in tokens_chunks:
+            for token_sequence in many_token_sequences:
                 # Left pad the sequence with window_size-1 padding tokens
-                tokens = [self.pad_token_id]*(self.window_size-1) + tokens
+                token_sequence = [self.pad_token_id]*(self.window_size-1) + token_sequence
                 # Right pad with end of sequence token
-                tokens = tokens + [self.eos_token_id]
-                for i in range(0, len(tokens) - self.window_size, self.stride_range[0] + random.randint(1, self.stride_range[1]) - 1):
-                    sequence = torch.tensor(tokens[i:i+self.window_size], dtype=torch.long)
-                    batche_samples.append(sequence)
-            # Using this batches list, yield 100 batches of sequences
-            random.shuffle(batche_samples)
-            for i in range(0, len(batche_samples), self.batch_size):
-                yield torch.stack(batche_samples[i:i+self.batch_size])
-            # Reset the tokens_chunks and batches lists
-            tokens_chunks = []
-            batche_samples = []
+                token_sequence = token_sequence + [self.eos_token_id]
+                for i in range(0, len(token_sequence) - self.window_size, self.stride_range[0] + random.randint(1, self.stride_range[1]) - 1):
+                    sequence = torch.tensor(token_sequence[i:i+self.window_size], dtype=torch.long)
+                    batch_of_batches.append(sequence)
+            # Using this batches list, yield 1024 batches of sequences
+            random.shuffle(batch_of_batches)
+            for i in range(0, len(batch_of_batches), self.batch_size):
+                yield torch.stack(batch_of_batches[i:i+self.batch_size])
+            # Reset the many_token_sequences and batches lists
+            many_token_sequences = []
+            batch_of_batches = []
         # TODO: Yield the remaining batches

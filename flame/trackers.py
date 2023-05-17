@@ -45,6 +45,9 @@ class NeptuneTracker:
         for metric in metrics:
             self.run[metric.name] = metric.value
 
+    def track_log(self, key: str, value: str):
+        self.run[key].log(value)
+
     def get_run_id(self):
         return self.run["sys/id"].fetch()
 
@@ -64,6 +67,9 @@ class NoopTracker:
         pass
 
     def track_values(self, metrics: List[Metric]):
+        pass
+
+    def track_log(self, key: str, value: str):
         pass
 
     def get_run_id(self):

@@ -3,9 +3,11 @@ import logging
 import os
 from abc import ABC, abstractmethod
 import random
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional, Union
 
 import boto3
+
+import flame
 
 
 class DataSource(ABC):
@@ -15,12 +17,13 @@ class DataSource(ABC):
         pass
 
 class CachedS3DataSource(DataSource):
-    def __init__(self, bucket: str, cache_dir: str, prefix: str, file_lambda: Callable = lambda x: x.endswith(".parquet"), shuffle: bool = True):
+    def __init__(self, bucket: str, cache_dir: str, prefix: str, file_lambda: Callable = lambda x: x.endswith(".parquet"), shuffle: bool = True, tracker: Optional[Union[flame.NeptuneTracker, flame.NoopTracker]] = None):
         self.cache_dir = cache_dir
         self.prefix = prefix
         self.file_lambda = file_lambda
         self.shuffle = shuffle
         self.bucket = boto3.resource('s3').Bucket(bucket)
+        self.tracker = tracker
         # Ensure the cache directory exists
         os.makedirs(os.path.dirname(f"{self.cache_dir}/{self.prefix}"), exist_ok=True)
 
@@ -39,6 +42,8 @@ class CachedS3DataSource(DataSource):
                     self.bucket.download_file(remote_file.key, f"{self.cache_dir}/{remote_file.key}")
                 else:
                     logging.info(f"Skipping download s3://{self.bucket.name}/{remote_file.key}, already exists")
+                if self.tracker:
+                    self.tracker.track_log("dataset/files_visited", f"s3://{self.bucket.name}/{remote_file.key}")
                 yield local_file
 
 class LocalGlobDataSource(DataSource):
