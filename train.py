@@ -21,9 +21,10 @@ from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer
 
 @dataclass
 class Args:
+    model: str
     model_cf: str
-    tokenizer_cf: str
     tokenizer: str
+    tokenizer_cf: str
 
 @dataclass
 class TrainingParametersArgs:
@@ -61,6 +62,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
+    parser.add_argument('--model', type=str, default="Gopilot", help='Name of the model to use.', choices=["Gopilot"])
     parser.add_argument('--tokenizer', type=str, default="GoScanner", help='Name of the tokenizer to use.', choices=["GoScanner", "HuggingFace"])
     args, remaining_args = parser.parse_known_args()
     # Training parameters
@@ -130,6 +132,7 @@ if __name__ == '__main__':
 
     # Configure the tracker
     tracker = flame.NeptuneTracker("rojasdiegopro/gopilot") if (flame.neptune_is_available() and run_args.neptune) else flame.NoopTracker()
+    tracker.track_hyperparameters(vars(args))
     tracker.track_hyperparameters(vars(tp_args))
     tracker.track_hyperparameters(vars(model.get_config()))
 
@@ -137,7 +140,7 @@ if __name__ == '__main__':
     dataset = DataPipeline(
         CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset, tracker=tracker),
         ParquetExtractorWithTokenization(tokenizer.encode, tracker=tracker),
-        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(1, 50)),
+        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(1, model.get_config().context_length)),
     )
 
     # Configure optimizer, learning rate scheduler
@@ -148,13 +151,13 @@ if __name__ == '__main__':
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
     trainer.register_handlers(
-        # Checkpoint every 1024 steps or every 5 minutes, whichever comes first
+        # Checkpoint every 1024 steps or every hour, whichever comes first
         flame.CheckpointingHandler(
             run_args.checkpoints_dir,
             filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
             max_files=3,
             max_step_interval=1024,
-            max_time_interval_sec=60*30,
+            max_time_interval_sec=60*60,
             # Optionally save the checkpoints to S3
             remote_bucket=s3_args.s3_bucket if run_args.remote_checkpoints else None,
             remote_prefix=f"checkpoints/{tracker.get_run_id()}" if run_args.remote_checkpoints else None,

@@ -24,6 +24,7 @@ class CachedS3DataSource(DataSource):
         self.shuffle = shuffle
         self.bucket = boto3.resource('s3').Bucket(bucket)
         self.tracker = tracker
+        self.shards_visited = 0
         # Ensure the cache directory exists
         os.makedirs(os.path.dirname(f"{self.cache_dir}/{self.prefix}"), exist_ok=True)
 
@@ -34,6 +35,7 @@ class CachedS3DataSource(DataSource):
         if self.shuffle:
             random.shuffle(remote_files)
         for remote_file in remote_files:
+            self.shards_visited += 1
             if self.file_lambda(remote_file.key):
                 local_file = f"{self.cache_dir}/{remote_file.key}"
                 if not os.path.exists(local_file):
@@ -43,8 +45,10 @@ class CachedS3DataSource(DataSource):
                 else:
                     logging.info(f"Skipping download s3://{self.bucket.name}/{remote_file.key}, already exists")
                 if self.tracker:
+                    self.tracker.track_metrics([flame.Metric("dataset/shards_visited", self.shards_visited)])
                     self.tracker.track_log("dataset/files_visited", f"s3://{self.bucket.name}/{remote_file.key}")
                 yield local_file
+
 
 class LocalGlobDataSource(DataSource):
     def __init__(self, glob_pattern: str, shuffle: bool = True):

@@ -18,6 +18,7 @@ class ParquetExtractorWithTokenization(Extractor):
         self.transform = transform
         self.shuffle = shuffle
         self.tracker = tracker
+        self.rows_visited = 0
 
     def samples(self, files: Iterable[str]) -> Iterable[List[int]]:
         """Extracts a DataFrame from a Parquet file. Tokenizes the "content" column into a "tokens" column."""
@@ -26,6 +27,7 @@ class ParquetExtractorWithTokenization(Extractor):
             if self.shuffle:
                 df = df.sample(frac=1)
             for _, row in df.iterrows():
+                self.rows_visited += 1
                 if self.tracker:
-                    self.tracker.track_metrics([flame.Metric("dataset/rows_visited", 1)])
+                    self.tracker.track_metrics([flame.Metric("dataset/rows_visited", self.rows_visited)])
                 yield self.transform(row["content"])
