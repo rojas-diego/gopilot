@@ -64,8 +64,8 @@ class Tokenizer(ABC):
 class HuggingFaceTokenizer(Tokenizer):
     def __init__(self):
         self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True)) # type: ignore
-        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
-        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
+        self.tokenizer.pre_tokenizer = MetaspaceEncoder() # type: ignore
+        self.tokenizer.decoder = MetaspaceDecoder() # type: ignore
 
     def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
         return Trainer(self.tokenizer, vocab_size, special_tokens)
@@ -100,8 +100,8 @@ class GoScannerTokenizer(Tokenizer):
 
     def __init__(self):
         self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True))
-        self.tokenizer.pre_tokenizer = MetaspaceEncoder() # type: ignore
-        self.tokenizer.decoder = MetaspaceDecoder() # type: ignore
+        self.tokenizer.pre_tokenizer = ByteLevelEncoder() # type: ignore
+        self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
 
     def encode(self, sequence: str) -> List[int]:
         scan_result = go_scanner_scan(sequence)

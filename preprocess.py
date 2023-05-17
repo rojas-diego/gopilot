@@ -10,7 +10,6 @@ if __name__ == "__main__":
     parser.add_argument('--job', type=str, required=True, help='Name of the preprocessing job to run.')
     # Optional
     parser.add_argument('--bucket', type=str, default="gopilot", help='Name of the S3 bucket to download the dataset files from.')
-    parser.add_argument('--region', type=str, default="ap-east-1", help='Name of the AWS region to use.')
     parser.add_argument('--source-prefix', type=str, help='Feed all files in that S3 directory to the job.')
     parser.add_argument('--cache-dir', type=str, default=".cache", help='Local mirror of the S3 bucket. Files are not downloaded if they already exist in the cache.')
     args = parser.parse_args()
