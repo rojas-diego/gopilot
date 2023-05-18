@@ -155,7 +155,7 @@ class GoScannerTokenizer(Tokenizer):
         self.tokenizer.save(path)
 
     @classmethod
-    def from_file(cls, path: str) -> Tokenizer:
+    def from_file(cls, path: str) -> "GoScannerTokenizer":
         tokenizer = cls()
         tokenizer.tokenizer = _HuggingFaceTokenizer.from_file(path) # type: ignore
         return tokenizer
