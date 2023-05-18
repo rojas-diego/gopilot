@@ -17,7 +17,7 @@ import torch
 
 import flame
 from model.model import GopilotModel
-from tokenizer import GoScannerTokenizer, Tokenizer
+from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer, Tokenizer
 
 
 @dataclass
@@ -25,22 +25,14 @@ class CompletionTask:
     id: str
     file_contents: str
     cursor_offset: int
-    max_tokens: int
-    stopping_tokens: List[int]
+    max_new_tokens: int
+    stopping_tokens: List[int] # TODO: Implement
 
     def __str__(self):
         return f"CompletionTask(id={self.id})"
 
 
-# class NextTokenStoppingCriteria(StoppingCriteria):
-#     def __init__(self, stopping_tokens: List[int]):
-#         self._stopping_tokens = stopping_tokens
-
-#     def __call__(self, input_ids: torch.Tensor, scores: torch.Tensor):
-#         pass
-
-
-def tokenize_file_context(tokenizer: Tokenizer, file_contents: str, cursor_offset: int, context_length: int):
+def tokenize_file_context(tokenizer: Tokenizer, file_contents: str, cursor_offset: int, context_length: int, max_new_tokens: int):
     """
     Tokenizes a file and truncates it to the appropriate context length.
 
@@ -50,13 +42,15 @@ def tokenize_file_context(tokenizer: Tokenizer, file_contents: str, cursor_offse
         `cursor_offset`: The offset of the cursor in the file.
         `context_length`: The context length to pad the file to.
         `pad_token_id`: The ID of the pad token.
+        `max_new_tokens`: Max tokens that will be generated. Used to truncate.
 
     Returns:
         A tensor containing the tokenized file, padded to the context length.
     """
+    assert context_length >= max_new_tokens
     file_context = tokenizer.encode(file_contents[:cursor_offset])
-    if len(file_context) > context_length:
-        file_context = file_context[-context_length:]
+    if len(file_context) > context_length - max_new_tokens:
+        file_context = file_context[-(context_length - max_new_tokens):]
     # Print the last 10 tokens of the context for debugging purposes.
     print([tokenizer.id_to_token(token_id) for token_id in file_context[len(file_context)-10:]])
     return torch.tensor(file_context)
@@ -95,7 +89,8 @@ class ModelService:
                 self._tokenizer,
                 task.file_contents,
                 task.cursor_offset,
-                self._model_context_length)
+                self._model_context_length,
+                task.max_new_tokens)
             assert input_ids.numel() <= self._model_context_length
             logging.info(f"Feeding model {input_ids.numel()} tokens")
             input_ids = input_ids.unsqueeze(0)
@@ -104,7 +99,6 @@ class ModelService:
                 do_sample=True,
                 temperature=self._temperature,
                 max_length=self._model_context_length,
-                max_new_tokens=self._max_length,
                 repetition_penalty=self._repetition_penalty,
                 pad_token_id=self._pad_token_id)
             assert isinstance(output, torch.Tensor)
@@ -146,7 +140,7 @@ def new_inference_endpoint_handler(model_service: ModelService, tokenizer: Token
                 id=self._new_id(),
                 file_contents=body.get("fileContents"),
                 cursor_offset=body.get("cursorOffset"),
-                max_tokens=3,
+                max_new_tokens=3,
                 stopping_tokens=[]
             )
             result = model_service.queue_completion_task(completion_task).result()
@@ -168,15 +162,19 @@ def load_model_from_checkpoint(model_cf: str, checkpoint_path: str, device: torc
     return model
 
 
-def load_tokenizer_from_file(tokenizer_cf: str):
+def load_tokenizer_from_file(tokenizer: str, tokenizer_cf: str):
     logging.info(f"Loading tokenizer from '{tokenizer_cf}'")
-    return GoScannerTokenizer.from_file(tokenizer_cf)
+    if tokenizer == "GoScanner":
+        return GoScannerTokenizer.from_file(tokenizer_cf)
+    else:
+        return HuggingFaceTokenizer.from_file(tokenizer_cf)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=3000)
+    parser.add_argument('--tokenizer', type=str, required=True, choices=["GoScanner", "HuggingFace"], help="Name of the tokenizer.")
     parser.add_argument('--model-cf', type=str, required=True, help="Path to model configuration")
     parser.add_argument('--tokenizer-cf', type=str, required=True, help="Path to tokenizer configuration")
     parser.add_argument('--checkpoint-path', type=str, required=True, help="Path to model checkpoint")
@@ -185,8 +183,11 @@ if __name__ == "__main__":
 
     args.device = torch.device(args.device) if args.device else flame.best_device()
 
-    tokenizer = load_tokenizer_from_file(args.tokenizer_cf)
+    tokenizer = load_tokenizer_from_file(args.tokenizer, args.tokenizer_cf)
     model = load_model_from_checkpoint(args.model_cf, args.checkpoint_path, args.device)
+
+    flame.log_model_summary(model)
+    logging.info(f"Tokenizer vocabulary size: {tokenizer.get_vocab_size()}")
 
     httpd = HTTPServer(('localhost', args.port), new_inference_endpoint_handler(ModelService(tokenizer, model), tokenizer))
     logging.info(f"Starting inference server on port {args.port}")
