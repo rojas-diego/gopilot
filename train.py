@@ -140,7 +140,7 @@ if __name__ == '__main__':
     dataset = DataPipeline(
         CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset, tracker=tracker),
         ParquetExtractorWithTokenization(tokenizer.encode, tracker=tracker),
-        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(1, model.get_config().context_length)),
+        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(model.get_config().context_length, model.get_config().context_length)),
     )
 
     # Configure optimizer, learning rate scheduler
@@ -151,13 +151,12 @@ if __name__ == '__main__':
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
     trainer.register_handlers(
-        # Checkpoint every 1024 steps or every hour, whichever comes first
         flame.CheckpointingHandler(
             run_args.checkpoints_dir,
             filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
             max_files=3,
-            max_step_interval=1024,
-            max_time_interval_sec=60*60,
+            max_step_interval=2**15,
+            max_time_interval_sec=60*60*2,
             # Optionally save the checkpoints to S3
             remote_bucket=s3_args.s3_bucket if run_args.remote_checkpoints else None,
             remote_prefix=f"checkpoints/{tracker.get_run_id()}" if run_args.remote_checkpoints else None,
