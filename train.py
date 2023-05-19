@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 import flame
 from dataset import (CachedS3DataSource, DataPipeline, ParquetExtractorWithTokenization, VariableLengthStridedWindowBatcher)
@@ -34,7 +34,9 @@ class TrainingParametersArgs:
     weight_decay: float
     lr: float
     epsilon: float
-    token_budget: int
+    # Unfortunately, neptune.ai does not support recording values greater than
+    # int32.max, so we have to use float instead.
+    token_budget: float
     clip_gradients: float
     precision: Union[str, torch.dtype]
     dataset: str
@@ -66,17 +68,17 @@ if __name__ == '__main__':
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
-    tp_parser.add_argument('--gradient-accumulation-steps', type=int, default=1, help='Number of gradient accumulation steps (Default 1, no accumulation).')
-    tp_parser.add_argument('--batch-size', type=int, default=64, help='Batch size.')
+    tp_parser.add_argument('--gradient-accumulation-steps', type=int, default=48, help='Number of gradient accumulation steps (Default 1, no accumulation).')
+    tp_parser.add_argument('--batch-size', type=int, default=12, help='Batch size.')
     tp_parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability.')
     tp_parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay value.')
-    tp_parser.add_argument('--lr', type=float, default=1e-3, help='Maximum learning rate.')
+    tp_parser.add_argument('--lr', type=float, default=3e-4, help='Maximum learning rate.')
     tp_parser.add_argument('--epsilon', type=float, default=10e-12, help='AdamW epsilon parameter.')
-    tp_parser.add_argument('--token-budget', type=int, default=60*60, help='Training budget in number of tokens to be processed.')
+    tp_parser.add_argument('--token-budget', type=float, default=1e10, help='Training budget in number of tokens to be processed.')
     tp_parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
-    tp_parser.add_argument('--precision', type=str, default="fp32", choices=["fp32", "fp16"], help='Precision to use for training.')
+    tp_parser.add_argument('--precision', type=str, default="fp16", choices=["fp32", "fp16"], help='Precision to use for training.')
     tp_parser.add_argument('--dataset', type=str, required=True, help='Prefix of the remote dataset.')
-    tp_parser.add_argument('--seed', type=int, default=42, help='Random seed.')
+    tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
@@ -143,10 +145,10 @@ if __name__ == '__main__':
 
     # Configure optimizer, learning rate scheduler
     num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
-    total_steps = tp_args.token_budget // num_tokens_ingested_per_batch
-    logging.info(f"Compute Budget Summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps.")
-    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.98), eps=tp_args.epsilon) # TODO: betas should be made configurable
-    scheduler = OneCycleLR(optimizer, anneal_strategy="linear", total_steps=total_steps, max_lr=tp_args.lr)
+    total_steps = int(tp_args.token_budget) // num_tokens_ingested_per_batch
+    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps.")
+    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.95), eps=tp_args.epsilon) # TODO: betas should be made configurable
+    scheduler = CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=0.0)
     criterion = CrossEntropyLoss()
 
     # Configure trainer

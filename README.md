@@ -31,17 +31,18 @@ docker run \
     --env NEPTUNE_API_TOKEN=$NEPTUNE_API_TOKEN \
     --ulimit memlock=-1 \
     --ulimit stack=67108864 \
-    --ipc=host \
-    ghcr.io/rojas-diego/gopilot:latest \
+    --ipc host \
+    --net host \
+    rojasdiego/gopilot:latest \
     python train.py \
         --model-cf model/config/gopilot.yml \
         --tokenizer HuggingFace \
         --tokenizer-cf tokenizer/config/hf-bpe-base.json \
         --dataset datasets/the-stack-dedup-v1.2/base \
-        --gradient-accumulation-steps 342 \
+        --gradient-accumulation-steps 40 \
         --batch-size 12 \
-        --lr 0.001 \
-        --token-budget 1000000000 \
+        --lr 0.0003 \
+        --token-budget 10000000000 \
         --device cuda \
         --precision fp16 \
         --checkpoints-dir /checkpoints \
