@@ -32,9 +32,22 @@ docker run \
     --ulimit memlock=-1 \
     --ulimit stack=67108864 \
     --ipc=host \
-    --gpus all \
     ghcr.io/rojas-diego/gopilot:latest \
-    python train.py --model-cf model/config/gopilot.yml --tokenizer HuggingFace --tokenizer-cf tokenizer/config/hf-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 32 --batch-size 32 --warmup 1000 --lr 0.00025 --training-budget-secs 64000 --device cuda --neptune --compile --precision fp16 --checkpoints-dir /checkpoints --remote-checkpoints
+    python train.py \
+        --model-cf model/config/gopilot.yml \
+        --tokenizer HuggingFace \
+        --tokenizer-cf tokenizer/config/hf-bpe-base.json \
+        --dataset datasets/the-stack-dedup-v1.2/base \
+        --gradient-accumulation-steps 342 \
+        --batch-size 12 \
+        --lr 0.001 \
+        --token-budget 1000000000 \
+        --device cuda \
+        --precision fp16 \
+        --checkpoints-dir /checkpoints \
+        --remote-checkpoints \
+        --neptune \
+        --compile
 ```
 
 ### Inference Server

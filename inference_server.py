@@ -51,8 +51,7 @@ def tokenize_file_context(tokenizer: Tokenizer, file_contents: str, cursor_offse
     file_context = tokenizer.encode(file_contents[:cursor_offset])
     if len(file_context) > context_length - max_new_tokens:
         file_context = file_context[-(context_length - max_new_tokens):]
-    # Print the last 10 tokens of the context for debugging purposes.
-    print([tokenizer.id_to_token(token_id) for token_id in file_context[len(file_context)-10:]])
+    print([tokenizer.id_to_token(token_id) for token_id in file_context])
     return torch.tensor(file_context)
 
 
@@ -102,7 +101,7 @@ class ModelService:
                 repetition_penalty=self._repetition_penalty,
                 pad_token_id=self._pad_token_id)
             assert isinstance(output, torch.Tensor)
-            decoded_output = self._tokenizer.decode(output.squeeze(0).tolist())
+            decoded_output = self._tokenizer.decode(output.squeeze(0).tolist()[input_ids.numel():])
             logging.info(f"Completion task {task.id} completed.")
             return decoded_output
 
@@ -140,7 +139,7 @@ def new_inference_endpoint_handler(model_service: ModelService, tokenizer: Token
                 id=self._new_id(),
                 file_contents=body.get("fileContents"),
                 cursor_offset=body.get("cursorOffset"),
-                max_new_tokens=3,
+                max_new_tokens=12,
                 stopping_tokens=[]
             )
             result = model_service.queue_completion_task(completion_task).result()

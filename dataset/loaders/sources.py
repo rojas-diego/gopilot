@@ -1,8 +1,8 @@
 import glob
 import logging
 import os
-from abc import ABC, abstractmethod
 import random
+from abc import ABC, abstractmethod
 from typing import Callable, Iterable, Optional, Union
 
 import boto3
@@ -15,6 +15,7 @@ class DataSource(ABC):
     @abstractmethod
     def files(self) -> Iterable[str]:
         pass
+
 
 class CachedS3DataSource(DataSource):
     def __init__(self, bucket: str, cache_dir: str, prefix: str, file_lambda: Callable = lambda x: x.endswith(".parquet"), shuffle: bool = True, tracker: Optional[Union[flame.NeptuneTracker, flame.NoopTracker]] = None):
@@ -45,7 +46,7 @@ class CachedS3DataSource(DataSource):
                 else:
                     logging.info(f"Skipping download s3://{self.bucket.name}/{remote_file.key}, already exists")
                 if self.tracker:
-                    self.tracker.track_metrics([flame.Metric("dataset/shards_visited", self.shards_visited)])
+                    self.tracker.track_values([flame.Metric("dataset/shards_visited", self.shards_visited)])
                     self.tracker.track_log("dataset/files_visited", f"s3://{self.bucket.name}/{remote_file.key}")
                 yield local_file
 

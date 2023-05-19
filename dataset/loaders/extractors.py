@@ -29,5 +29,5 @@ class ParquetExtractorWithTokenization(Extractor):
             for _, row in df.iterrows():
                 self.rows_visited += 1
                 if self.tracker:
-                    self.tracker.track_metrics([flame.Metric("dataset/rows_visited", self.rows_visited)])
+                    self.tracker.track_values([flame.Metric("dataset/rows_visited", self.rows_visited)])
                 yield self.transform(row["content"])

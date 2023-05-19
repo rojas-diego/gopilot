@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import OneCycleLR
 
 import flame
 from dataset import (CachedS3DataSource, DataPipeline, ParquetExtractorWithTokenization, VariableLengthStridedWindowBatcher)
@@ -32,10 +32,9 @@ class TrainingParametersArgs:
     batch_size: int
     dropout: float
     weight_decay: float
-    warmup: int
     lr: float
     epsilon: float
-    training_budget_secs: int
+    token_budget: int
     clip_gradients: float
     precision: Union[str, torch.dtype]
     dataset: str
@@ -71,10 +70,9 @@ if __name__ == '__main__':
     tp_parser.add_argument('--batch-size', type=int, default=64, help='Batch size.')
     tp_parser.add_argument('--dropout', type=float, default=0.0, help='Dropout probability.')
     tp_parser.add_argument('--weight-decay', type=float, default=0.1, help='Weight decay value.')
-    tp_parser.add_argument('--warmup', type=int, default=100, help='Number of warmup steps.')
     tp_parser.add_argument('--lr', type=float, default=1e-3, help='Maximum learning rate.')
     tp_parser.add_argument('--epsilon', type=float, default=10e-12, help='AdamW epsilon parameter.')
-    tp_parser.add_argument('--training-budget-secs', type=int, default=60*60, help='Training budget in seconds to define the learning rate schedule (Default 1h).')
+    tp_parser.add_argument('--token-budget', type=int, default=60*60, help='Training budget in number of tokens to be processed.')
     tp_parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
     tp_parser.add_argument('--precision', type=str, default="fp32", choices=["fp32", "fp16"], help='Precision to use for training.')
     tp_parser.add_argument('--dataset', type=str, required=True, help='Prefix of the remote dataset.')
@@ -144,8 +142,11 @@ if __name__ == '__main__':
     )
 
     # Configure optimizer, learning rate scheduler
+    num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
+    total_steps = tp_args.token_budget // num_tokens_ingested_per_batch
+    logging.info(f"Compute Budget Summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps.")
     optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.98), eps=tp_args.epsilon) # TODO: betas should be made configurable
-    scheduler = LambdaLR(optimizer, lr_lambda=flame.LinearLRScheduleWithTimeBudget(tp_args.warmup, tp_args.training_budget_secs, 0.1)) # TODO: better learning rate schedule
+    scheduler = OneCycleLR(optimizer, anneal_strategy="linear", total_steps=total_steps, max_lr=tp_args.lr)
     criterion = CrossEntropyLoss()
 
     # Configure trainer

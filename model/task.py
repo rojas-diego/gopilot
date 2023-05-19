@@ -70,7 +70,6 @@ class GopilotTask(flame.SimpleTask):
 
         return [
             flame.Metric("loss", loss_value, weight=batch_size * sequence_length, step=self.total_tokens_ingested),
-            flame.Metric("perplexity", math.exp(min(loss_value, 100)), weight=batch_size * sequence_length, step=self.total_tokens_ingested),
             flame.Metric("total_tokens_ingested", self.total_tokens_ingested)
         ]
 
@@ -84,10 +83,10 @@ class GopilotTask(flame.SimpleTask):
         else:
             self.optimizer.step()
 
-        self.optimizer.zero_grad()
-
         if self.scheduler is not None:
             self.scheduler.step()
+
+        self.optimizer.zero_grad()
 
         num_losses = len(self.step_loss)
         step_loss_value = sum(self.step_loss) / num_losses
@@ -95,6 +94,5 @@ class GopilotTask(flame.SimpleTask):
 
         return [
             flame.Metric("loss", step_loss_value, step=self.total_tokens_ingested),
-            flame.Metric("perplexity", math.exp(min(step_loss_value, 100)), step=self.total_tokens_ingested),
             flame.Metric("lr", self.optimizer.param_groups[0]["lr"]),
         ]
