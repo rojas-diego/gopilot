@@ -26,11 +26,11 @@ class VariableLengthStridedWindowBatcher(Batcher):
         many_token_sequences = []
         batch_of_batches = []
         for token_sequence in dataset_samples:
-            # Accumulate at least 64 times batch_size lists of tokens
+            # Accumulate at least 64 dataset samples
             many_token_sequences.append(token_sequence)
             if len(many_token_sequences) < 64*self.batch_size:
                 continue
-            # For each chunk of tokens, form batches of sequences
+            # For each token sequence, form batch of sequences
             for token_sequence in many_token_sequences:
                 # Right pad with end of sequence token
                 token_sequence = token_sequence + [self.eos_token_id]
@@ -40,14 +40,16 @@ class VariableLengthStridedWindowBatcher(Batcher):
                     assert len(sequence) == self.window_size
                     sequence = torch.tensor(sequence, dtype=torch.long)
                     batch_of_batches.append(sequence)
-            # Using this batches list, yield 64 batches of sequences
+            # Using this batches list, yield batches of `batch_size`
             random.shuffle(batch_of_batches)
-            for i in range(0, len(batch_of_batches), self.batch_size):
-                yield torch.stack(batch_of_batches[i:i+self.batch_size])
-            # Reset the many_token_sequences and batches lists
+            # Make sure to yield full batches
+            while len(batch_of_batches) >= self.batch_size:
+                batch = torch.stack(batch_of_batches[:self.batch_size])
+                batch_of_batches = batch_of_batches[self.batch_size:]
+                assert batch.shape[0] == self.batch_size
+                assert batch.shape[1] == self.window_size
+                yield batch
             many_token_sequences = []
-            batch_of_batches = []
-        # TODO: Yield the remaining batches
 
     def _random_stride(self):
         return random.randint(*self.stride_range)

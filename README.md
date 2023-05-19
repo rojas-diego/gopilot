@@ -29,10 +29,12 @@ docker run \
     --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
     --env AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
     --env NEPTUNE_API_TOKEN=$NEPTUNE_API_TOKEN \
-    --cpus 8 \
-    --memory 24g \
+    --ulimit memlock=-1 \
+    --ulimit stack=67108864 \
+    --ipc=host \
+    --gpus all \
     ghcr.io/rojas-diego/gopilot:latest \
-    python train.py --model-cf model/config/gopilot.yml --tokenizer-cf tokenizer/config/go-scanner-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 32 --batch-size 16 --warmup 1000 --lr 0.00025 --training-budget-secs 21600 --device cuda --neptune --compile --precision fp16 --checkpoints-dir /checkpoints --remote-checkpoints
+    python train.py --model-cf model/config/gopilot.yml --tokenizer HuggingFace --tokenizer-cf tokenizer/config/hf-bpe-base.json --dataset datasets/the-stack-dedup-v1.2/base --gradient-accumulation-steps 32 --batch-size 32 --warmup 1000 --lr 0.00025 --training-budget-secs 64000 --device cuda --neptune --compile --precision fp16 --checkpoints-dir /checkpoints --remote-checkpoints
 ```
 
 ### Inference Server
