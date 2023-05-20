@@ -54,11 +54,6 @@ class TrackingHandler:
 
 
 class LoggingHandler:
-    """
-    Log the run's hyperparameters and the validation accuracy and loss at the
-    end of each epoch.
-    """
-
     def __init__(self, on_step: bool = True, on_batch: bool = True):
         self._on_step = on_step
         self._on_batch = on_batch
@@ -100,18 +95,72 @@ class LoggingHandler:
         return ", ".join([f"{prefix} {metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics])
 
 
+class S3RemoteCheckpointingHandler:
+    """
+    When a checkpoint is produced, it is uploaded to S3.
+
+    Args:
+        bucket (str): The name of the S3 bucket to upload to.
+        prefix (str): The prefix to use when uploading checkpoints.
+        max_files (int): Maximum number of checkpoints kept on the bucket
+            simultaneously.
+    """
+    def __init__(self, bucket: str, prefix: str,  max_files: int = 1):
+        self.bucket = boto3.resource("s3").Bucket(bucket)
+        self.prefix = prefix
+        self.max_files = max_files
+        self.remote_files = []
+        self.uploader = ThreadPoolExecutor(max_workers=1)
+        self.active_uploads = {}
+        logging.info(f"Remote checkpointing enabled. Checkpoints will be synced to s3://{self.bucket.name}/{self.prefix}")
+
+    def on_checkpoint(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, checkpoint_filepath: str):
+        remote_location = os.path.join(self.prefix, os.path.basename(checkpoint_filepath))
+        
+        def upload():
+            try:
+                logging.info(f"Uploading checkpoint to s3://{self.bucket.name}/{remote_location} in the background")
+                self.bucket.upload_file(checkpoint_filepath, remote_location)
+            except Exception as e:
+                logging.warning(f"Failed to upload checkpoint to s3://{self.bucket.name}/{remote_location}: {e}")
+            finally:
+                self.active_uploads[checkpoint_filepath].set()
+                logging.info(f"Finished uploading checkpoint to s3://{self.bucket.name}/{remote_location}")
+                self.remote_files.append(remote_location)
+                self._remove_old_checkpoints()
+
+        self.active_uploads[checkpoint_filepath] = threading.Event()
+        self.uploader.submit(upload)
+
+    def _remove_old_checkpoints(self):
+        while len(self.remote_files) > self.max_files:
+            file_to_delete = self.remote_files.pop(0)
+            try:
+                self.bucket.Object(file_to_delete).delete()
+                logging.info(f"Deleted old remote checkpoint s3://{self.bucket.name}/{file_to_delete}")
+            except Exception as e:
+                logging.warning(f"Failed to delete old remote checkpoint s3://{self.bucket.name}/{file_to_delete}: {e}")
+
+
 class CheckpointingHandler:
-    def __init__(self, checkpoints_dir: str, filename_prefix: str, max_files: int = 1, max_epoch_interval: int = 1, max_step_interval: int = 120, max_time_interval_sec: int = 60*2, remote_bucket: Optional[str] = None, remote_prefix: Optional[str] = None):
+    """
+    Responsible for checkpointing the model at regular intervals.
+
+    Args:
+        checkpoints_dir (str): The directory where checkpoints will be saved.
+        filename (str): The prefix to use when naming checkpoints. Can be formatted with metrics exposed by the task and the current epoch, step and batch.
+        max_files (int): Maximum number of checkpoints kept in the directory simultaneously.
+        max_epoch_interval (int): Maximum number of epochs between checkpoints.
+        max_step_interval (int): Maximum number of steps between checkpoints.
+        max_time_interval_sec (int): Maximum number of seconds between checkpoints.
+    """
+    def __init__(self, checkpoints_dir: str, filename: str, max_files: int = 1, max_epoch_interval: int = 1, max_step_interval: int = 120, max_time_interval_sec: int = 60*2):
         self.checkpoints_dir = checkpoints_dir
-        self.filename_prefix = filename_prefix
+        self.filename = filename
         self.max_files = max_files
         self.max_step_interval = max_step_interval
         self.max_epoch_interval = max_epoch_interval
         self.max_time_interval_sec = max_time_interval_sec
-        self.remote_bucket = boto3.resource("s3").Bucket(remote_bucket) if remote_bucket else None
-        self.remote_prefix = remote_prefix
-        self.remote_uploader = ThreadPoolExecutor(max_workers=1) if self.remote_bucket else None
-        self.remote_active_uploads = {}
         self.files_written = []
         self.last_checkpoint_ts = time.time()
         self.last_checkpoint_epoch = 0
@@ -119,78 +168,8 @@ class CheckpointingHandler:
         # Ensure the checkpoints directory exists
         os.makedirs(self.checkpoints_dir, exist_ok=True)
         logging.info(f"Checkpointing enabled. Checkpoints will be saved to {self.checkpoints_dir}")
-        if self.remote_bucket:
-            logging.info(f"Remote checkpointing enabled. Checkpoints will be uploaded to s3://{self.remote_bucket.name}/{self.remote_prefix}")
 
-    def on_step(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
-        if self._should_checkpoint(epoch_idx, batch_idx, step_idx):
-            formatted_filename_prefix = self._make_filename_prefix(epoch_idx, batch_idx, step_idx, metrics)
-            # Check if formatted filename still contain format markers
-            if "{" in formatted_filename_prefix:
-                logging.warning(f"Checkpoint filename {formatted_filename_prefix} still contains format markers. Checkpointing will be skipped.")
-                return
-            self._checkpoint(os.path.join(self.checkpoints_dir, formatted_filename_prefix), trainer, epoch_idx, batch_idx, step_idx, metrics)
-
-    def _checkpoint(self, location: str, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
-        self.last_checkpoint_ts = time.time()
-        self.last_checkpoint_epoch = epoch_idx
-        self.last_checkpoint_step = step_idx
-        trainer.task.checkpoint(location, epoch_idx, batch_idx, step_idx, metrics)
-
-        logging.info(f"Saved checkpoint to '{location}'")
-        self.files_written.append(location)
-
-        if self.remote_bucket and self.remote_prefix and self.remote_uploader:
-            remote_location = os.path.join(self.remote_prefix, os.path.basename(location))
-
-            def upload_file(location: str, remote_location: str):
-                if not self.remote_bucket or not self.remote_prefix:
-                    return
-                try:
-                    logging.info(f"Uploading checkpoint to s3://{self.remote_bucket.name}/{remote_location} in the background")
-                    self.remote_bucket.upload_file(location, remote_location)
-                except Exception as e:
-                    logging.warning(f"Failed to upload checkpoint to s3://{self.remote_bucket.name}/{remote_location}: {e}")
-                finally:
-                    self.remote_active_uploads[location].set()
-                    logging.info(f"Finished uploading checkpoint to s3://{self.remote_bucket.name}/{remote_location}")
-
-            self.remote_active_uploads[location] = threading.Event()
-            self.remote_uploader.submit(upload_file, location, remote_location)
-
-        # Cleanup old checkpoints
-        while len(self.files_written) > self.max_files:
-            logging.info(f"Deleting old checkpoint '{self.files_written[0]}'")
-            file_to_delete = self.files_written.pop(0)
-            if file_to_delete in self.remote_active_uploads:
-                # If the file is still being uploaded, wait for the upload to finish
-                logging.info(f"Waiting for remote upload of '{file_to_delete}' to finish")
-                self.remote_active_uploads[file_to_delete].wait()
-                del self.remote_active_uploads[file_to_delete]
-            if os.path.exists(file_to_delete):
-                try:
-                    os.remove(file_to_delete)
-                    logging.info(f"Deleted local checkpoint '{file_to_delete}'")
-                except Exception as e:
-                    logging.warning(f"Failed to delete local checkpoint '{file_to_delete}': {e}")
-            if self.remote_bucket and self.remote_prefix:
-                # Delete the remote checkpoint if it exists
-                remote_location = os.path.join(self.remote_prefix, os.path.basename(file_to_delete))
-                try:
-                    self.remote_bucket.Object(remote_location).delete()
-                    logging.info(f"Deleted remote checkpoint s3://{self.remote_bucket.name}/{remote_location}")
-                except Exception as e:
-                    logging.warning(f"Failed to delete remote checkpoint s3://{self.remote_bucket.name}/{remote_location}: {e}")
-
-    def _make_filename_prefix(self, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]) -> str:
-        metrics_dict = {metric.name: metric.value for metric in metrics}
-        metrics_dict["epoch"] = epoch_idx
-        metrics_dict["step"] = step_idx
-        metrics_dict["batch"] = batch_idx
-        return self.filename_prefix.format(**metrics_dict)
-
-    def _should_checkpoint(self, epoch_idx: int, batch_idx: int, step_idx: int) -> bool:
-        """Only checkpoint if at least one interval has passed since the last checkpoint."""
+    def should_checkpoint(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, step_metrics: List[Metric]) -> bool:
         if epoch_idx - self.last_checkpoint_epoch >= self.max_epoch_interval:
             return True
         if step_idx - self.last_checkpoint_step >= self.max_step_interval:
@@ -198,6 +177,36 @@ class CheckpointingHandler:
         if time.time() - self.last_checkpoint_ts >= self.max_time_interval_sec:
             return True
         return False
+
+    def checkpoint(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
+        formatted_filename = self._make_filename(epoch_idx, batch_idx, step_idx, metrics)
+        # Check if formatted filename still contain format markers
+        if "{" in formatted_filename:
+            logging.warning(f"Checkpoint filename {formatted_filename} still contains format markers. Checkpointing will be skipped.")
+            return
+        self.last_checkpoint_ts = time.time()
+        self.last_checkpoint_epoch = epoch_idx
+        self.last_checkpoint_step = step_idx
+        checkpoint_filepath = os.path.join(self.checkpoints_dir, formatted_filename)
+        trainer.task.checkpoint(checkpoint_filepath, epoch_idx, batch_idx, step_idx, metrics)
+        logging.info(f"Saved checkpoint to '{checkpoint_filepath}'")
+        self.files_written.append(checkpoint_filepath)
+        self._remove_old_checkpoints()
+        return checkpoint_filepath
+    
+    def _remove_old_checkpoints(self):
+        while len(self.files_written) > self.max_files:
+            file_to_delete = self.files_written.pop(0)
+            if os.path.exists(file_to_delete):
+                try:
+                    os.remove(file_to_delete)
+                    logging.info(f"Deleted old checkpoint '{file_to_delete}'")
+                except Exception as e:
+                    logging.warning(f"Failed to delete old checkpoint '{file_to_delete}': {e}")
+
+    def _make_filename(self, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]) -> str:
+        metrics_dict = {metric.name: metric.value for metric in metrics}
+        return self.filename.format(**metrics_dict, epoch=epoch_idx, step=step_idx, batch=batch_idx)
 
 
 class TorchProfilingHandler:
@@ -238,3 +247,7 @@ class TorchProfilingHandler:
 
     def cleanup(self, trainer: Trainer):
         self.__exit__(None, None, None)
+
+
+class NoopHandler:
+    pass

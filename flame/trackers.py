@@ -3,14 +3,11 @@ import os
 import random
 import string
 from typing import List, Optional
+
 import neptune
 from neptune.utils import stringify_unsupported
 
 from .utils import Metric
-
-
-def neptune_is_available():
-    return ("NEPTUNE_API_TOKEN" in os.environ)
 
 
 class NeptuneTracker:
@@ -25,7 +22,9 @@ class NeptuneTracker:
             api_token=api_token if api_token is not None else self._getenv("NEPTUNE_API_TOKEN"),
             capture_stderr=True,
             capture_stdout=True,
-            source_files=["./**/*.py"])
+            source_files=["./**/*.py"],
+            fail_on_exception=False
+        )
         logging.info(f"Run ID: {self.get_run_id()}")
 
     def _getenv(self, key: str):

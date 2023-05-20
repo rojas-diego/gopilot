@@ -127,7 +127,27 @@ class Trainer:
                 self._callback("on_step", epoch_idx, batch_idx, step_idx, step_metrics)
                 samples.update(step_metrics)
                 step_idx += 1
+                self._invoke_checkpointing_callbacks(epoch_idx, batch_idx, step_idx, step_metrics)
             self._callback("on_train_batch_end", epoch_idx, batch_idx, step_idx, batch_metrics)
+
+    def _invoke_checkpointing_callbacks(self, epoch_idx: int, batch_idx: int, step_idx: int, step_metrics: List[Metric]):
+        for handler in self.handlers:
+            if hasattr(handler, "should_checkpoint") and hasattr(handler, "checkpoint"):
+                try:
+                    if getattr(handler, "should_checkpoint")(self, epoch_idx, batch_idx, step_idx, step_metrics):
+                        checkpoint_filepath = getattr(handler, "checkpoint")(self, epoch_idx, batch_idx, step_idx, step_metrics)
+                        self._callback("on_checkpoint", epoch_idx, batch_idx, step_idx, checkpoint_filepath)
+                except Exception as e:
+                    logging.error(f"Exception raised during {handler.__class__.__name__}.should_checkpoint() or {handler.__class__.__name__}.checkpoint(): {e}.")
+
+    def _should_checkpoint(self, epoch_idx: int, batch_idx: int, step_idx: int, step_metrics: List[Metric]):
+        for handler in self.handlers:
+            if hasattr(handler, "should_checkpoint"):
+                try:
+                    if getattr(handler, "should_checkpoint")(self, epoch_idx, batch_idx, step_idx, step_metrics):
+                        return True
+                except Exception as e:
+                    logging.error(f"Exception raised during {handler.__class__.__name__}.should_checkpoint(): {e}.")
 
     def _validate(self, epoch_idx: int):
         if self.validation_loader is None:
@@ -200,7 +220,10 @@ class Trainer:
     def _callback(self, callback_name: str, *args, **kwargs):
         for handler in self.handlers:
             if hasattr(handler, callback_name):
-                getattr(handler, callback_name)(self, *args, **kwargs)
+                try:
+                    getattr(handler, callback_name)(self, *args, **kwargs)
+                except Exception as e:
+                    logging.error(f"Exception raised during {handler.__class__.__name__}.{callback_name}(): {e}. Ignoring.")
 
     def _make_progress_bar(self, enable_progress_bar: bool, desc: str, loader: Iterable):
         base = enumerate(loader)

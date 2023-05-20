@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Any, List, Optional
 import torch
@@ -38,6 +39,24 @@ class MetricsStore:
                 self.metrics_total_count[name]
             ) for name in self.metrics_total_sum
         ]
+
+
+class LinearLRScheduleWithTimeBudget:
+    def __init__(self, warmup_steps: int, training_budget_secs: int, min_factor: float):
+        self.warmup_steps = warmup_steps
+        self.training_budget_secs = training_budget_secs
+        self.min_factor = min_factor
+        self.start_time = time.time()
+
+    def __call__(self, step: int) -> float:
+        if step < self.warmup_steps:
+            return step / self.warmup_steps
+        if step == self.warmup_steps:
+            self.start_time = time.time()
+        step = step - self.warmup_steps
+        elapsed_time = time.time() - self.start_time
+        scale_factor = 1 - (elapsed_time / self.training_budget_secs)
+        return max(self.min_factor, scale_factor)
 
 
 def xavier_initialization(model: Module):
@@ -90,19 +109,25 @@ def log_model_summary(model: Module):
     logging.info(f"Total layers: {len(list(model.modules()))}")
 
 
-class LinearLRScheduleWithTimeBudget:
-    def __init__(self, warmup_steps: int, training_budget_secs: int, min_factor: float):
-        self.warmup_steps = warmup_steps
-        self.training_budget_secs = training_budget_secs
-        self.min_factor = min_factor
-        self.start_time = time.time()
+def neptune_is_available():
+    return ("NEPTUNE_API_TOKEN" in os.environ)
 
-    def __call__(self, step: int) -> float:
-        if step < self.warmup_steps:
-            return step / self.warmup_steps
-        if step == self.warmup_steps:
-            self.start_time = time.time()
-        step = step - self.warmup_steps
-        elapsed_time = time.time() - self.start_time
-        scale_factor = 1 - (elapsed_time / self.training_budget_secs)
-        return max(self.min_factor, scale_factor)
+
+def s3_is_available():
+    return (
+        "AWS_DEFAULT_REGION" in os.environ and
+        "AWS_ACCESS_KEY_ID" in os.environ and
+        "AWS_SECRET_ACCESS_KEY" in os.environ
+    )
+
+
+def expected_loss(n, d):
+    """
+    Computes the optimal model size given the number of parameters and the
+    number of tokens.
+    """
+    return 1.69 + (406/n**0.34) + (410.7 / d**0.27)
+
+
+def model_size(model: Module):
+    return sum(p.numel() for p in model.parameters())

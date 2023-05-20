@@ -45,8 +45,7 @@ docker run \
         --token-budget 10000000000 \
         --device cuda \
         --precision fp16 \
-        --checkpoints-dir /checkpoints \
-        --remote-checkpoints \
+        --s3-checkpoints \
         --neptune \
         --compile
 ```

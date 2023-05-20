@@ -46,16 +46,15 @@ class TrainingParametersArgs:
 class S3Args:
     s3_bucket: str
     s3_cache_dir: str
+    s3_checkpoints: bool
 
 @dataclass
 class RunArgs:
     device: Union[str, torch.device]
-    progress: bool
     verbose: bool
     neptune: bool
     compile: bool
     checkpoints_dir: str
-    remote_checkpoints: bool
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -84,16 +83,15 @@ if __name__ == '__main__':
     s3_parser = argparse.ArgumentParser()
     s3_parser.add_argument('--s3-bucket', type=str, default="gopilot", help='S3 bucket name.')
     s3_parser.add_argument('--s3-cache-dir', type=str, default=".cache", help='Local cache directory.')
+    s3_parser.add_argument('--s3-checkpoints', default=False, action='store_true', help='Enable remote checkpoints.')
     s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
     run_parser.add_argument('--device', type=str, default='auto', help='Device to use for training.')
-    run_parser.add_argument('--progress', default=False, action='store_true', help='Enable progress bar.')
     run_parser.add_argument('--verbose', default=True, action='store_true', help='Enable verbose logging.')
     run_parser.add_argument('--neptune', default=False, action='store_true', help='Enable Neptune integration.')
     run_parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
-    run_parser.add_argument('--remote-checkpoints', default=False, action='store_true', help='Enable remote checkpoints.')
     run_args = run_parser.parse_args(remaining_args)
 
     args = Args(**vars(args))
@@ -101,10 +99,13 @@ if __name__ == '__main__':
     s3_args = S3Args(**vars(s3_args))
     run_args = RunArgs(**vars(run_args))
 
+    assert flame.s3_is_available(), "S3 is not available. Please set the relevant environment variables."
+    assert flame.neptune_is_available() or not run_args.neptune, "Neptune is not available. Please set the relevant environment variables."
+
     assert "AWS_DEFAULT_REGION" in os.environ, "AWS_DEFAULT_REGION environment variable must be set."
     assert "AWS_ACCESS_KEY_ID" in os.environ, "AWS_ACCESS_KEY_ID environment variable must be set."
     assert "AWS_SECRET_ACCESS_KEY" in os.environ, "AWS_SECRET_ACCESS_KEY environment variable must be set."
-    assert "NEPTUNE_API_TOKEN" in os.environ or not run_args.neptune, "NEPTUNE_API_TOKEN environment variable must be set for --neptune to work."
+
 
     # Seed for reproducibility
     torch.manual_seed(tp_args.seed)
@@ -146,7 +147,7 @@ if __name__ == '__main__':
     # Configure optimizer, learning rate scheduler
     num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
     total_steps = int(tp_args.token_budget) // num_tokens_ingested_per_batch
-    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps.")
+    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
     optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.95), eps=tp_args.epsilon) # TODO: betas should be made configurable
     scheduler = CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=0.0)
     criterion = CrossEntropyLoss()
@@ -156,16 +157,18 @@ if __name__ == '__main__':
     trainer.register_handlers(
         flame.CheckpointingHandler(
             run_args.checkpoints_dir,
-            filename_prefix=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
+            filename=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
             max_files=3,
-            max_step_interval=2**15,
+            max_step_interval=50,
             max_time_interval_sec=60*60*2,
-            # Optionally save the checkpoints to S3
-            remote_bucket=s3_args.s3_bucket if run_args.remote_checkpoints else None,
-            remote_prefix=f"checkpoints/{tracker.get_run_id()}" if run_args.remote_checkpoints else None,
         ),
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=False),
         flame.TrackingHandler(tracker),
+        flame.S3RemoteCheckpointingHandler(
+            s3_args.s3_bucket,
+            f"checkpoints/{tracker.get_run_id()}",
+            max_files=3
+        ) if s3_args.s3_checkpoints else flame.NoopHandler(),
     )
 
     # Run training
@@ -173,5 +176,4 @@ if __name__ == '__main__':
         num_epochs=-1,
         train_loader=dataset,
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
-        enable_progress_bar=run_args.progress,
     )
