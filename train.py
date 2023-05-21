@@ -2,14 +2,12 @@
 
 import argparse
 import logging
-import os
 import random
 from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
 import torch
-from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
@@ -148,13 +146,13 @@ if __name__ == '__main__':
         rank=0,
         world_size=1,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", prefetch_factor=32)
 
     # Configure optimizer, learning rate scheduler
     num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
     total_steps = int(tp_args.token_budget) // num_tokens_ingested_per_batch
-    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.95), eps=tp_args.epsilon) # TODO: betas should be made configurable
+    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
+    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon) # TODO: betas should be made configurable
     scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps))
 
     # Configure trainer

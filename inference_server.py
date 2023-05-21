@@ -97,7 +97,7 @@ class ModelService:
                 input_ids,
                 do_sample=True,
                 temperature=self._temperature,
-                max_length=self._model_context_length,
+                max_new_tokens=min(task.max_new_tokens, self._model_context_length - input_ids.numel()),
                 repetition_penalty=self._repetition_penalty,
                 pad_token_id=self._pad_token_id)
             assert isinstance(output, torch.Tensor)

@@ -1,0 +1,6 @@
+context_length: 1024
+embedding_dimensions: 1024
+num_layers: 24
+num_heads: 16
+feedforward_dimensions: 4096
+vocab_size: 32768
