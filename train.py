@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 
 import flame
@@ -40,6 +40,7 @@ class TrainingParametersArgs:
     token_budget: float
     clip_gradients: float
     precision: Union[str, torch.dtype]
+    warmup: int
     seed: int
 
 @dataclass
@@ -79,6 +80,7 @@ if __name__ == '__main__':
     tp_parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
     tp_parser.add_argument('--precision', type=str, default="fp16", choices=["fp32", "fp16"], help='Precision to use for training.')
     tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
+    tp_parser.add_argument('--warmup', type=int, default=1000, help='Number of warmup steps.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
@@ -153,7 +155,7 @@ if __name__ == '__main__':
     total_steps = int(tp_args.token_budget) // num_tokens_ingested_per_batch
     logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
     optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.95), eps=tp_args.epsilon) # TODO: betas should be made configurable
-    scheduler = CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=0.0)
+    scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps))
 
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
