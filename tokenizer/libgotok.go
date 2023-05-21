@@ -1,11 +1,13 @@
 package main
 
+// #include <stdlib.h>
 import "C"
 import (
 	"encoding/json"
 	"go/parser"
 	"go/scanner"
 	"go/token"
+	"unsafe"
 )
 
 type Offset [2]int
@@ -201,6 +203,11 @@ func IDToTokenLiteral(id C.int) *C.char {
 		return C.CString("\t")
 	}
 	return C.CString("")
+}
+
+//export FreeCString
+func FreeCString(cstr *C.char) {
+	C.free(unsafe.Pointer(cstr))
 }
 
 func main() {}

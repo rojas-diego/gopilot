@@ -20,7 +20,7 @@ class Trainer:
         return self.tokenizer.train_from_iterator(iterator, trainer=self.trainer)
     
 
-class GoScannerTrainer(Trainer):
+class GopilotTrainer(Trainer):
     def train_from_iterator(self, iterator: Iterable):
         # First scan the iterator to get the Go tokens
         accumulated_sequences = []
@@ -34,6 +34,10 @@ class GoScannerTrainer(Trainer):
 class Tokenizer(ABC):
     @abstractmethod
     def encode(self, sequence: str) -> List[int]:
+        pass
+
+    @abstractmethod
+    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
         pass
 
     @abstractmethod
@@ -73,6 +77,10 @@ class HuggingFaceTokenizer(Tokenizer):
     def encode(self, sequence: str) -> List[int]:
         return self.tokenizer.encode(sequence).ids
     
+    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
+        result = self.tokenizer.encode_batch(sequences)
+        return [r.ids for r in result]
+
     def decode(self, ids: List[int]) -> str:
         return self.tokenizer.decode(ids)
 
@@ -95,7 +103,7 @@ class HuggingFaceTokenizer(Tokenizer):
         return tokenizer
 
 
-class GoScannerTokenizer(Tokenizer):
+class GopilotTokenizer(Tokenizer):
     GO_TOKENS_COUNT = 89 + 3 # 89 Go tokens + 3 special tokens
 
     def __init__(self):
@@ -118,6 +126,9 @@ class GoScannerTokenizer(Tokenizer):
             else:
                 expanded_tokens.append(scan_result.ids[i] + self.tokenizer.get_vocab_size())
         return expanded_tokens
+    
+    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
+        return [self.encode(sequence) for sequence in sequences]
 
     def decode(self, ids: List[int]) -> str:
         decoded = ""
@@ -133,7 +144,7 @@ class GoScannerTokenizer(Tokenizer):
         return decoded
 
     def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
-        return GoScannerTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
+        return GopilotTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
 
     def id_to_token(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
@@ -155,7 +166,7 @@ class GoScannerTokenizer(Tokenizer):
         self.tokenizer.save(path)
 
     @classmethod
-    def from_file(cls, path: str) -> "GoScannerTokenizer":
+    def from_file(cls, path: str) -> "GopilotTokenizer":
         tokenizer = cls()
         tokenizer.tokenizer = _HuggingFaceTokenizer.from_file(path) # type: ignore
         return tokenizer

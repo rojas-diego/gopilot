@@ -12,11 +12,12 @@ import torch
 from torch.nn import CrossEntropyLoss
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.utils.data import DataLoader
 
 import flame
-from dataset import (CachedS3DataSource, DataPipeline, ParquetExtractorWithTokenization, VariableLengthStridedWindowBatcher)
+from dataset import DistributedGopilotDataset
 from model import GopilotModel, GopilotTask
-from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer
+from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 
 @dataclass
@@ -39,7 +40,6 @@ class TrainingParametersArgs:
     token_budget: float
     clip_gradients: float
     precision: Union[str, torch.dtype]
-    dataset: str
     seed: int
 
 @dataclass
@@ -47,6 +47,7 @@ class S3Args:
     s3_bucket: str
     s3_cache_dir: str
     s3_checkpoints: bool
+    s3_dataset_prefix: str
 
 @dataclass
 class RunArgs:
@@ -55,6 +56,7 @@ class RunArgs:
     neptune: bool
     compile: bool
     checkpoints_dir: str
+    mem_profile: bool
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -62,8 +64,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
-    parser.add_argument('--model', type=str, default="Gopilot", help='Name of the model to use.', choices=["Gopilot"])
-    parser.add_argument('--tokenizer', type=str, default="GoScanner", help='Name of the tokenizer to use.', choices=["GoScanner", "HuggingFace"])
+    parser.add_argument('--model', type=str, default="Gopilot", help='Name of the model to use.', choices=["gopilot"])
+    parser.add_argument('--tokenizer', type=str, default="Gopilot", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
@@ -76,7 +78,6 @@ if __name__ == '__main__':
     tp_parser.add_argument('--token-budget', type=float, default=1e10, help='Training budget in number of tokens to be processed.')
     tp_parser.add_argument('--clip-gradients', type=float, default=0.5, help='Clip gradients norm value.')
     tp_parser.add_argument('--precision', type=str, default="fp16", choices=["fp32", "fp16"], help='Precision to use for training.')
-    tp_parser.add_argument('--dataset', type=str, required=True, help='Prefix of the remote dataset.')
     tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
@@ -84,6 +85,7 @@ if __name__ == '__main__':
     s3_parser.add_argument('--s3-bucket', type=str, default="gopilot", help='S3 bucket name.')
     s3_parser.add_argument('--s3-cache-dir', type=str, default=".cache", help='Local cache directory.')
     s3_parser.add_argument('--s3-checkpoints', default=False, action='store_true', help='Enable remote checkpoints.')
+    s3_parser.add_argument('--s3-dataset-prefix', type=str, required=True, help='Prefix of the remote dataset.')
     s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     run_parser.add_argument('--neptune', default=False, action='store_true', help='Enable Neptune integration.')
     run_parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
+    run_parser.add_argument('--mem-profile', default=False, action='store_true', help='Enable memory profiling.')
     run_args = run_parser.parse_args(remaining_args)
 
     args = Args(**vars(args))
@@ -101,11 +104,6 @@ if __name__ == '__main__':
 
     assert flame.s3_is_available(), "S3 is not available. Please set the relevant environment variables."
     assert flame.neptune_is_available() or not run_args.neptune, "Neptune is not available. Please set the relevant environment variables."
-
-    assert "AWS_DEFAULT_REGION" in os.environ, "AWS_DEFAULT_REGION environment variable must be set."
-    assert "AWS_ACCESS_KEY_ID" in os.environ, "AWS_ACCESS_KEY_ID environment variable must be set."
-    assert "AWS_SECRET_ACCESS_KEY" in os.environ, "AWS_SECRET_ACCESS_KEY environment variable must be set."
-
 
     # Seed for reproducibility
     torch.manual_seed(tp_args.seed)
@@ -126,8 +124,8 @@ if __name__ == '__main__':
         model: GopilotModel = torch.compile(model, backend="inductor") # type: ignore
 
     # Load the tokenizer
-    if args.tokenizer == "GoScanner":
-        tokenizer = GoScannerTokenizer.from_file(args.tokenizer_cf)
+    if args.tokenizer == "gopilot":
+        tokenizer = GopilotTokenizer.from_file(args.tokenizer_cf)
     else:
         tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
@@ -136,13 +134,19 @@ if __name__ == '__main__':
     tracker.track_hyperparameters(vars(args))
     tracker.track_hyperparameters(vars(tp_args))
     tracker.track_hyperparameters(vars(model.get_config()))
+    tracker.track_hyperparameters({"dataset": s3_args.s3_dataset_prefix})
 
     # Load the dataset
-    dataset = DataPipeline(
-        CachedS3DataSource(s3_args.s3_bucket, s3_args.s3_cache_dir, tp_args.dataset, tracker=tracker),
-        ParquetExtractorWithTokenization(tokenizer.encode, tracker=tracker),
-        VariableLengthStridedWindowBatcher(tp_args.batch_size, model.get_config().context_length+1, tokenizer.special_token_to_id("[PAD]"), tokenizer.special_token_to_id("[EOS]"), stride_range=(model.get_config().context_length, model.get_config().context_length)),
+    dataset = DistributedGopilotDataset(
+        s3_args.s3_bucket,
+        s3_args.s3_dataset_prefix,
+        s3_args.s3_cache_dir,
+        window_size=model.get_config().context_length+1,
+        stride=model.get_config().context_length,
+        rank=0,
+        world_size=1,
     )
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size)
 
     # Configure optimizer, learning rate scheduler
     num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
@@ -169,11 +173,17 @@ if __name__ == '__main__':
             f"checkpoints/{tracker.get_run_id()}",
             max_files=3
         ) if s3_args.s3_checkpoints else flame.NoopHandler(),
+        flame.MemoryProfilingHandler(
+            max_steps_interval=64,
+            max_time_interval_sec=60*15,
+            num_lines=10,
+            trigger_gc=True,
+        ) if run_args.mem_profile else flame.NoopHandler(),
     )
 
     # Run training
     trainer.train(
         num_epochs=-1,
-        train_loader=dataset,
+        train_loader=loader,
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )

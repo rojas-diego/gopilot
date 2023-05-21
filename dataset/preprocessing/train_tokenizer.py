@@ -1,9 +1,9 @@
 import tempfile
 import pandas
 
-from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer, Trainer
+from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Trainer
 
-from .base import PreprocessingJob
+from .preprocessing_job import PreprocessingJob
 
 
 class TrainTokenizerJob(PreprocessingJob):
@@ -38,7 +38,7 @@ class TrainHuggingFaceTokenizerJob(TrainTokenizerJob):
         self.tokenizer = HuggingFaceTokenizer()
 
 
-class TrainGoScannerTokenizerJob(TrainTokenizerJob):
+class TrainGopilotTokenizerJob(TrainTokenizerJob):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tokenizer = GoScannerTokenizer()
+        self.tokenizer = GopilotTokenizer()

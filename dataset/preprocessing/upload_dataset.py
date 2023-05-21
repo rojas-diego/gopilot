@@ -2,7 +2,7 @@ import datasets
 import pandas
 import tqdm
 
-from .base import PreprocessingJob
+from .preprocessing_job import PreprocessingJob
 
 
 def num_byte_to_human_readable(num_bytes: int) -> str:

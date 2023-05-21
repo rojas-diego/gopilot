@@ -24,6 +24,9 @@ go_scanner_id_to_token_literal_symbol = GOTOK_HANDLE.IDToTokenLiteral
 go_scanner_id_to_token_literal_symbol.argtypes = [ctypes.c_int]
 go_scanner_id_to_token_literal_symbol.restype = ctypes.c_char_p
 
+go_scanner_free_cstring_symbol = GOTOK_HANDLE.FreeCString
+go_scanner_free_cstring_symbol.argtypes = [ctypes.c_char_p]
+
 @dataclass
 class ScanResult:
     offsets: List[List[int]]
@@ -32,14 +35,29 @@ class ScanResult:
     literals: List[str]
 
 def go_scanner_scan(src: str) -> ScanResult:
-    scan_result_json = str(go_scanner_scan_symbol(src.encode("utf-8")), encoding="utf-8")
     try:
-        return ScanResult(**json.loads(scan_result_json))
-    except Exception:
-        raise Exception("libgotok.Scan(): " + scan_result_json)
+        stringp = go_scanner_scan_symbol(src.encode("utf-8"))
+        scan_result_json = str(stringp, encoding="utf-8")
+        result = ScanResult(**json.loads(scan_result_json))
+        go_scanner_free_cstring_symbol(stringp)
+        return result
+    except Exception as e:
+        raise Exception(f"Exception raised in libgotok.Scan(): {e}")
 
 def go_scanner_id_to_token_name(id: int) -> str:
-    return str(go_scanner_id_to_token_name_symbol(id), encoding="utf-8")
+    try:
+        stringp = go_scanner_id_to_token_name_symbol(id)
+        result = str(stringp, encoding="utf-8")
+        go_scanner_free_cstring_symbol(stringp)
+        return result
+    except Exception as e:
+        raise Exception(f"Exception raised in libgotok.IDToTokenName(): {e}")
 
 def go_scanner_id_to_token_literal(id: int) -> str:
-    return str(go_scanner_id_to_token_literal_symbol(id), encoding="utf-8")
+    try:
+        stringp = go_scanner_id_to_token_literal_symbol(id)
+        result = str(stringp, encoding="utf-8")
+        go_scanner_free_cstring_symbol(stringp)
+        return result
+    except Exception as e:
+        raise Exception(f"Exception raised in libgotok.IDToTokenLiteral(): {e}")

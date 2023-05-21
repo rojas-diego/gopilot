@@ -1,1 +1,1 @@
-from .tokenizer import Tokenizer, Trainer, GoScannerTokenizer, HuggingFaceTokenizer
+from .tokenizer import Tokenizer, Trainer, GopilotTokenizer, HuggingFaceTokenizer

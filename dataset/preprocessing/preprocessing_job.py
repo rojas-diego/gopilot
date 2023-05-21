@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from typing import Optional
+import numpy
 import pandas
 import boto3
 import shutil
@@ -57,6 +58,12 @@ class PreprocessingJob:
         """Writes the json file to the local cache and uploads it to S3."""
         with open(os.path.join(self._cache_dir, self._dest_prefix, filename), "w") as f:
             f.write(json.dumps(data))
+        self._bucket.upload_file(os.path.join(self._cache_dir, self._dest_prefix, filename), os.path.join(self._dest_prefix, filename))
+        logging.info(f"Uploaded file {filename} to s3://{self._bucket_name}/{self._dest_prefix}/{filename}")
+
+    def save_npy(self, data: numpy.ndarray, filename: str):
+        """Writes the npy file to the local cache and uploads it to S3."""
+        numpy.save(os.path.join(self._cache_dir, self._dest_prefix, filename), data)
         self._bucket.upload_file(os.path.join(self._cache_dir, self._dest_prefix, filename), os.path.join(self._dest_prefix, filename))
         logging.info(f"Uploaded file {filename} to s3://{self._bucket_name}/{self._dest_prefix}/{filename}")
 

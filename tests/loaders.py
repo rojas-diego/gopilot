@@ -8,12 +8,12 @@ import unittest
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from dataset import DataPipeline, CachedS3DataSource, ParquetExtractorWithTokenization, StridedWindowBatcher
-from tokenizer import GoScannerTokenizer
+from tokenizer import GopilotTokenizer
 
 
 class TestLoaders(unittest.TestCase):
     def test_s3_parquet_with_tokenization_and_strided_window_batcher(self):
-        tokenizer = GoScannerTokenizer.from_file(".cache/tokenizers/the-stack-dedup-v1.2/go-scanner-bpe-base/tokenizer.json")
+        tokenizer = GopilotTokenizer.from_file(".cache/tokenizers/the-stack-dedup-v1.2/go-scanner-bpe-base/tokenizer.json")
         source = CachedS3DataSource(bucket="gopilot", cache_dir=".cache", file_lambda=lambda x: x.endswith(".parquet"), prefix="datasets/the-stack-dedup-v1.2/base")
         extractor = ParquetExtractorWithTokenization(transform=tokenizer.encode)
         batcher = StridedWindowBatcher(batch_size=16, window_size=128, stride=64)

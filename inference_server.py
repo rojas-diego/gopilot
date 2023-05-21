@@ -17,7 +17,7 @@ import torch
 
 import flame
 from model.model import GopilotModel
-from tokenizer import GoScannerTokenizer, HuggingFaceTokenizer, Tokenizer
+from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
 
 
 @dataclass
@@ -163,8 +163,8 @@ def load_model_from_checkpoint(model_cf: str, checkpoint_path: str, device: torc
 
 def load_tokenizer_from_file(tokenizer: str, tokenizer_cf: str):
     logging.info(f"Loading tokenizer from '{tokenizer_cf}'")
-    if tokenizer == "GoScanner":
-        return GoScannerTokenizer.from_file(tokenizer_cf)
+    if tokenizer == "gopilot":
+        return GopilotTokenizer.from_file(tokenizer_cf)
     else:
         return HuggingFaceTokenizer.from_file(tokenizer_cf)
 
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=3000)
-    parser.add_argument('--tokenizer', type=str, required=True, choices=["GoScanner", "HuggingFace"], help="Name of the tokenizer.")
+    parser.add_argument('--tokenizer', type=str, required=True, choices=["gopilot", "hugging-face"], help="Name of the tokenizer.")
     parser.add_argument('--model-cf', type=str, required=True, help="Path to model configuration")
     parser.add_argument('--tokenizer-cf', type=str, required=True, help="Path to tokenizer configuration")
     parser.add_argument('--checkpoint-path', type=str, required=True, help="Path to model checkpoint")

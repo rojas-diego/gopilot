@@ -20,15 +20,15 @@ if __name__ == "__main__":
     job_name = args.job
     delattr(args, "job")
 
-    if job_name == "tokenize-hf":
+    if job_name == "tokenize-with-huggingface":
         job = TokenizeWithHuggingFaceJob(**vars(args))
-    elif job_name == "tokenize-go-scanner":
-        job = TokenizeWithGoScannerJob(**vars(args))
-    elif job_name == "train-hf-tokenizer":
+    elif job_name == "tokenize-with-gopilot":
+        job = TokenizeWithGopilotJob(**vars(args))
+    elif job_name == "train-huggingface-tokenizer":
         job = TrainHuggingFaceTokenizerJob(**vars(args))
-    elif job_name == "train-go-scanner-tokenizer":
-        job = TrainGoScannerTokenizerJob(**vars(args))
-    elif job_name == "upload":
+    elif job_name == "train-gopilot-tokenizer":
+        job = TrainGopilotTokenizerJob(**vars(args))
+    elif job_name == "upload-the-stack":
         job = UploadTheStackJob(**vars(args))
     else:
         raise ValueError(f"Unknown job {args.job}")
