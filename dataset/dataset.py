@@ -15,6 +15,8 @@ class DistributedGopilotDataset(IterableDataset):
         self.stride = stride
         self.rank = rank
         self.world_size = world_size
+        # Ensure that the cache directory exists.
+        os.makedirs(os.path.join(cache_dir, prefix), exist_ok=True)
 
     def __iter__(self):
         self.bucket = boto3.resource("s3").Bucket(self.bucket_name)

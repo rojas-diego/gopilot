@@ -35,19 +35,21 @@ docker run \
     --net host \
     rojasdiego/gopilot:latest \
     python train.py \
-        --model-cf model/config/gopilot.yml \
-        --tokenizer HuggingFace \
-        --tokenizer-cf tokenizer/config/hf-bpe-base.json \
-        --dataset datasets/the-stack-dedup-v1.2/base \
-        --gradient-accumulation-steps 40 \
-        --batch-size 12 \
-        --lr 0.0003 \
+        --model-cf model/config/gopilot-240M.yml \
+        --tokenizer hugging-face \
+        --tokenizer-cf tokenizer/config/hugging-face.json \
+        --s3-dataset-prefix datasets/the-stack-dedup-v1.2/hugging-face-pretokenized \
+        --gradient-accumulation-steps 32 \
+        --batch-size 16 \
+        --lr 0.0002 \
         --token-budget 10000000000 \
         --device cuda \
         --precision fp16 \
         --s3-checkpoints \
+        --warmup 1000 \
         --neptune \
-        --compile
+        --compile \
+        --mem-profile
 ```
 
 ### Inference Server
