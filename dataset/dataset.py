@@ -8,7 +8,7 @@ from torch.utils.data import IterableDataset
 
 class DistributedGopilotDataset(IterableDataset):
     def __init__(self, bucket: str, prefix: str, cache_dir: str, window_size: int, stride: int, rank: int = 0, world_size: int = 1, device: torch.device = torch.device("cpu")):
-        self.bucket = boto3.resource("s3").Bucket(bucket)
+        self.bucket_name = bucket
         self.prefix = prefix
         self.cache_dir = cache_dir
         self.window_size = window_size
@@ -17,6 +17,7 @@ class DistributedGopilotDataset(IterableDataset):
         self.world_size = world_size
 
     def __iter__(self):
+        self.bucket = boto3.resource("s3").Bucket(self.bucket_name)
         remote_files = [obj.key for obj in self.bucket.objects.filter(Prefix=self.prefix)]
         remote_files = [remote_file for remote_file in remote_files if remote_file.endswith(".npy")]
         logging.info(f"Found {len(remote_files)} files in '{self.bucket.name}/{self.prefix}'")

@@ -146,7 +146,7 @@ if __name__ == '__main__':
         rank=0,
         world_size=1,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size)
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
 
     # Configure optimizer, learning rate scheduler
     num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
@@ -154,7 +154,6 @@ if __name__ == '__main__':
     logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens ingested per batch, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
     optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.95), eps=tp_args.epsilon) # TODO: betas should be made configurable
     scheduler = CosineAnnealingLR(optimizer, T_max=total_steps, eta_min=0.0)
-    criterion = CrossEntropyLoss()
 
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
@@ -174,8 +173,8 @@ if __name__ == '__main__':
             max_files=3
         ) if s3_args.s3_checkpoints else flame.NoopHandler(),
         flame.MemoryProfilingHandler(
-            max_steps_interval=64,
-            max_time_interval_sec=60*15,
+            max_steps_interval=128,
+            max_time_interval_sec=60*30,
             num_lines=10,
             trigger_gc=True,
         ) if run_args.mem_profile else flame.NoopHandler(),
