@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import boto3
 import numpy
 import torch
@@ -37,5 +38,11 @@ class DistributedGopilotDataset(IterableDataset):
     def _iter_local_file(self, local_file: str):
         mapped_file: numpy.ndarray = numpy.load(local_file)
         logging.info(f"Loaded '{local_file}' with shape {mapped_file.shape}, {mapped_file.nbytes / 1024 / 1024:.2f}MB")
+        samples = []
         for i in range(0, mapped_file.shape[0] - self.window_size, self.stride):
-            yield torch.from_numpy(mapped_file[i:i+self.window_size].astype(numpy.int32)).to(torch.long)
+            samples.append(mapped_file[i:i+self.window_size])
+        del mapped_file
+        random.shuffle(samples)
+        logging.info(f"Generated {len(samples)} samples from '{local_file}'")
+        for sample in samples:
+            yield torch.from_numpy(sample.astype(numpy.int32)).to(torch.long)

@@ -162,7 +162,7 @@ if __name__ == '__main__':
             run_args.checkpoints_dir,
             filename=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
             max_files=3,
-            max_step_interval=50,
+            max_step_interval=4096,
             max_time_interval_sec=60*60*2,
         ),
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=False),
@@ -173,7 +173,7 @@ if __name__ == '__main__':
             max_files=3
         ) if s3_args.s3_checkpoints else flame.NoopHandler(),
         flame.MemoryProfilingHandler(
-            max_steps_interval=128,
+            max_steps_interval=2048,
             max_time_interval_sec=60*30,
             num_lines=10,
             trigger_gc=True,
