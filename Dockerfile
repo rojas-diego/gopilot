@@ -50,4 +50,4 @@ RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.g
 # amended to fix this issue hence we must uninstall and reinstall the package.
 # See https://github.com/pytorch/pytorch/issues/96937
 RUN pip uninstall -y triton
-RUN pip install -y triton==2.0.0.post1
+RUN pip install triton==2.0.0.post1
