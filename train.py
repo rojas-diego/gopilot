@@ -55,7 +55,6 @@ class RunArgs:
     neptune: bool
     compile: bool
     checkpoints_dir: str
-    mem_profile: bool
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -94,7 +93,6 @@ if __name__ == '__main__':
     run_parser.add_argument('--neptune', default=False, action='store_true', help='Enable Neptune integration.')
     run_parser.add_argument('--compile', default=False, action='store_true', help='Enable torch.compile().')
     run_parser.add_argument('--checkpoints-dir', type=str, default="out/checkpoints", help='Checkpoints directory.')
-    run_parser.add_argument('--mem-profile', default=False, action='store_true', help='Enable memory profiling.')
     run_args = run_parser.parse_args(remaining_args)
 
     args = Args(**vars(args))
@@ -172,12 +170,6 @@ if __name__ == '__main__':
             f"checkpoints/{tracker.get_run_id()}",
             max_files=3
         ) if s3_args.s3_checkpoints else flame.NoopHandler(),
-        flame.MemoryProfilingHandler(
-            max_steps_interval=2048,
-            max_time_interval_sec=60*30,
-            num_lines=10,
-            trigger_gc=True,
-        ) if run_args.mem_profile else flame.NoopHandler(),
     )
 
     # Run training
