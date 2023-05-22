@@ -103,8 +103,11 @@ class HuggingFaceTokenizer(Tokenizer):
 
 
 class GopilotTokenizer(Tokenizer):
-    GO_TOKENS_COUNT = 89 + 3 # 89 Go tokens + 3 special tokens
+    INDENT_TOKENS_COUNT = 8
+    GO_TOKENS_COUNT = 92
+    EXTRA_TOKENS_COUNT = GO_TOKENS_COUNT + 3 + INDENT_TOKENS_COUNT # 89 Go tokens + 3 special tokens
     GO_SPACE_ID = 89
+    GO_TAB_ID = 91
     GO_TOKENS_WITH_SPACE_AFTER = set([':', ',', ';', 'break', 'default', 'func', 'interface', 'select', 'case', 'defer', 'go', 'map', 'struct', 'chan', 'else', 'goto', 'package', 'switch', 'const', 'fallthrough', 'if', 'range', 'type', 'continue', 'for', 'import', 'return', 'var'])
     GO_TOKENS_WITH_SPACE_BEFORE_AFTER = set([':=', '=', '&&', '||', '>=', '<=', '>', '<', '!=', '==', '-', '+', '*', '/', '%', '+=', '-=', '*=', '/=', '%=', '<<', '>>'])
     GO_TOKENS_TO_REMOVE_SPACES_AFTER = GO_TOKENS_WITH_SPACE_AFTER.union(GO_TOKENS_WITH_SPACE_BEFORE_AFTER)
@@ -116,10 +119,13 @@ class GopilotTokenizer(Tokenizer):
 
     def encode(self, sequence: str) -> List[int]:
         space_id = self.GO_SPACE_ID + self.tokenizer.get_vocab_size()
+        tab_id = self.GO_TAB_ID
         scan_result = go_scanner_scan(sequence)
         expanded_tokens = []
         removing_spaces_after = False
         for i, token_name in enumerate(scan_result.names):
+            if token_name == 'TAB':
+                continue
             if removing_spaces_after and token_name == 'SPACE':
                 continue
             if token_name in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER or token_name == 'SPACE':
@@ -136,6 +142,14 @@ class GopilotTokenizer(Tokenizer):
             # Ignored tokens
             elif token_name in ['EOF']:
                 continue
+            # Newlines and indents
+            elif token_name == 'NEWLINE':
+                num_indents = 0
+                next_token = i+1
+                while (next_token < len(scan_result.ids) and scan_result.ids[next_token] == tab_id and num_indents < self.INDENT_TOKENS_COUNT - 1):
+                    num_indents += 1
+                    next_token += 1
+                expanded_tokens.append(self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT + num_indents)
             # Go tokens
             else:
                 expanded_tokens.append(scan_result.ids[i] + self.tokenizer.get_vocab_size())
@@ -151,22 +165,30 @@ class GopilotTokenizer(Tokenizer):
                 hf_decoded = self.tokenizer.decode(sequence_of_hf_tokens)
                 decoded += hf_decoded[1:]
                 sequence_of_hf_tokens = []
-                token_literal = go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
-                if token_literal in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
-                    decoded += ' '
-                decoded += token_literal
-                if token_literal in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
-                    decoded += ' '
+                if id >= self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT:
+                    decoded += '\n' + '\t' * (id - (self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT))
+                else:
+                    token_literal = go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+                    if token_literal in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
+                        decoded += ' '
+                    decoded += token_literal
+                    if token_literal in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
+                        decoded += ' '
         return decoded
 
     def id_to_token(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
             return self.tokenizer.decode([id])[1:]
-        return go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+        elif id >= self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT:
+            return '\n' + ('\t' * (id - (self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT)))
+        else:
+            return go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
 
     def id_to_token_name(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
             return self.tokenizer.id_to_token(id)
+        elif id >= self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT:
+            return f'NL_INDENT_{(id - (self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT))}'
         token_name = go_scanner_id_to_token_name(id - self.tokenizer.get_vocab_size())
         if token_name in self.GO_TOKENS_WITH_SPACE_AFTER:
             token_name += '_'
@@ -178,13 +200,13 @@ class GopilotTokenizer(Tokenizer):
         return [self.encode(sequence) for sequence in sequences]
 
     def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
-        return GopilotTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
+        return GopilotTrainer(self.tokenizer, vocab_size - self.EXTRA_TOKENS_COUNT, special_tokens)
 
     def special_token_to_id(self, token: str) -> int:
         return self.tokenizer.token_to_id(token)
 
     def get_vocab_size(self) -> int:
-        return self.tokenizer.get_vocab_size() + self.GO_TOKENS_COUNT
+        return self.tokenizer.get_vocab_size() + self.EXTRA_TOKENS_COUNT
 
     def save(self, path: str):
         self.tokenizer.save(path)
