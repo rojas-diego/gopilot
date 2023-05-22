@@ -9,7 +9,6 @@ from tokenizers.trainers import BpeTrainer
 
 from .scan import go_scanner_id_to_token_name, go_scanner_scan, go_scanner_id_to_token_literal
 
-
 class Trainer:
     def __init__(self, tokenizer: _HuggingFaceTokenizer, vocab_size: int, special_tokens: List[str]):
         assert len(special_tokens) != 0
@@ -105,6 +104,10 @@ class HuggingFaceTokenizer(Tokenizer):
 
 class GopilotTokenizer(Tokenizer):
     GO_TOKENS_COUNT = 89 + 3 # 89 Go tokens + 3 special tokens
+    GO_SPACE_ID = 89
+    GO_TOKENS_WITH_SPACE_AFTER = set([',', ';', 'break', 'default', 'func', 'interface', 'select', 'case', 'defer', 'go', 'map', 'struct', 'chan', 'else', 'goto', 'package', 'switch', 'const', 'fallthrough', 'if', 'range', 'type', 'continue', 'for', 'import', 'return', 'var'])
+    GO_TOKENS_WITH_SPACE_BEFORE_AFTER = set([':=', '=', '&&', '||', '>=', '<=', '>', '<', '!=', '==', '-', '+', '*', '/', '%', '+=', '-=', '*=', '/=', '%=', '<<', '>>'])
+    GO_TOKENS_TO_REMOVE_SPACES_AFTER = GO_TOKENS_WITH_SPACE_AFTER.union(GO_TOKENS_WITH_SPACE_BEFORE_AFTER)
 
     def __init__(self):
         self.tokenizer = _HuggingFaceTokenizer(model=BPE(unk_token="[UNK]", fuse_unk=True))
@@ -112,9 +115,20 @@ class GopilotTokenizer(Tokenizer):
         self.tokenizer.decoder = ByteLevelDecoder() # type: ignore
 
     def encode(self, sequence: str) -> List[int]:
+        space_id = self.GO_SPACE_ID + self.tokenizer.get_vocab_size()
         scan_result = go_scanner_scan(sequence)
         expanded_tokens = []
+        removing_spaces_after = False
         for i, token_name in enumerate(scan_result.names):
+            if token_name in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
+                removing_spaces_after = True
+            elif token_name != 'SPACE':
+                removing_spaces_after = False
+            if removing_spaces_after and token_name == 'SPACE':
+                continue
+            if token_name in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
+                while expanded_tokens[-1] == space_id:
+                    expanded_tokens = expanded_tokens[:-1]
             # Expanded tokens
             if token_name in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']:
                 tokens = self.tokenizer.encode(scan_result.literals[i])
@@ -127,9 +141,6 @@ class GopilotTokenizer(Tokenizer):
                 expanded_tokens.append(scan_result.ids[i] + self.tokenizer.get_vocab_size())
         return expanded_tokens
     
-    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
-        return [self.encode(sequence) for sequence in sequences]
-
     def decode(self, ids: List[int]) -> str:
         decoded = ""
         sequence_of_hf_tokens = []
@@ -140,11 +151,13 @@ class GopilotTokenizer(Tokenizer):
                 hf_decoded = self.tokenizer.decode(sequence_of_hf_tokens)
                 decoded += hf_decoded[1:]
                 sequence_of_hf_tokens = []
-                decoded += go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+                token_literal = go_scanner_id_to_token_literal(id - self.tokenizer.get_vocab_size())
+                if token_literal in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
+                    decoded += ' '
+                decoded += token_literal
+                if token_literal in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
+                    decoded += ' '
         return decoded
-
-    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
-        return GopilotTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
 
     def id_to_token(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
@@ -154,7 +167,18 @@ class GopilotTokenizer(Tokenizer):
     def id_to_token_name(self, id: int) -> str:
         if id < self.tokenizer.get_vocab_size():
             return self.tokenizer.id_to_token(id)
-        return go_scanner_id_to_token_name(id - self.tokenizer.get_vocab_size())
+        token_name = go_scanner_id_to_token_name(id - self.tokenizer.get_vocab_size())
+        if token_name in self.GO_TOKENS_WITH_SPACE_AFTER:
+            token_name += '_'
+        elif token_name in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
+            token_name = '_' + token_name + '_'
+        return token_name
+
+    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
+        return [self.encode(sequence) for sequence in sequences]
+
+    def new_trainer(self, vocab_size: int, special_tokens: List[str]) -> Trainer:
+        return GopilotTrainer(self.tokenizer, vocab_size - self.GO_TOKENS_COUNT, special_tokens)
 
     def special_token_to_id(self, token: str) -> int:
         return self.tokenizer.token_to_id(token)
