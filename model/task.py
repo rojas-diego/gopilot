@@ -67,7 +67,7 @@ class GopilotTask(flame.SimpleTask):
 
         self.total_tokens_ingested += batch_size * sequence_length
 
-        del loss, masked_loss, total_loss, num_active_elements, inputs, targets, attention_mask, batch
+        del loss, masked_loss, total_loss, num_active_elements, inputs, targets, attention_mask, batch, logits
 
         return [
             flame.Metric("loss", loss_value, weight=batch_size * sequence_length, step=self.total_tokens_ingested),
