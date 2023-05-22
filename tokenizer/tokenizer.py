@@ -105,7 +105,7 @@ class HuggingFaceTokenizer(Tokenizer):
 class GopilotTokenizer(Tokenizer):
     GO_TOKENS_COUNT = 89 + 3 # 89 Go tokens + 3 special tokens
     GO_SPACE_ID = 89
-    GO_TOKENS_WITH_SPACE_AFTER = set([',', ';', 'break', 'default', 'func', 'interface', 'select', 'case', 'defer', 'go', 'map', 'struct', 'chan', 'else', 'goto', 'package', 'switch', 'const', 'fallthrough', 'if', 'range', 'type', 'continue', 'for', 'import', 'return', 'var'])
+    GO_TOKENS_WITH_SPACE_AFTER = set([':', ',', ';', 'break', 'default', 'func', 'interface', 'select', 'case', 'defer', 'go', 'map', 'struct', 'chan', 'else', 'goto', 'package', 'switch', 'const', 'fallthrough', 'if', 'range', 'type', 'continue', 'for', 'import', 'return', 'var'])
     GO_TOKENS_WITH_SPACE_BEFORE_AFTER = set([':=', '=', '&&', '||', '>=', '<=', '>', '<', '!=', '==', '-', '+', '*', '/', '%', '+=', '-=', '*=', '/=', '%=', '<<', '>>'])
     GO_TOKENS_TO_REMOVE_SPACES_AFTER = GO_TOKENS_WITH_SPACE_AFTER.union(GO_TOKENS_WITH_SPACE_BEFORE_AFTER)
 
@@ -120,7 +120,7 @@ class GopilotTokenizer(Tokenizer):
         expanded_tokens = []
         removing_spaces_after = False
         for i, token_name in enumerate(scan_result.names):
-            if token_name in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
+            if token_name in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER or token_name == 'SPACE':
                 removing_spaces_after = True
             elif token_name != 'SPACE':
                 removing_spaces_after = False
