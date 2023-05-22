@@ -150,10 +150,8 @@ def new_inference_endpoint_handler(model_service: ModelService, tokenizer: Token
 
 def load_model_from_checkpoint(model_cf: str, checkpoint_path: str, device: torch.device):
     logging.info(f"Loading model from checkpoint '{checkpoint_path}'")
-    model = GopilotModel.from_config_file(model_cf)
+    model = GopilotModel.from_config_file(model_cf, use_cache=True)
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    # For every key in checkpoint that begins with `_orig_mod.`, remove that prefix
-    # and load the state dict into the model.
     for key in list(checkpoint['model'].keys()):
         if key.startswith("_orig_mod."):
             checkpoint['model'][key[len("_orig_mod."):]] = checkpoint['model'].pop(key)

@@ -1,4 +1,3 @@
-import math
 from typing import List, Optional
 
 import torch
@@ -45,7 +44,6 @@ class GopilotTask(flame.SimpleTask):
         with autocast(self.precision == torch.float16):
             outputs: CausalLMOutputWithCrossAttentions = self.model(inputs, attention_mask=attention_mask)
             logits = outputs.logits
-
             # Calculate the masked loss
             loss_mask = (targets != self.pad_token_id).float()
             loss = self.criterion(logits.view(-1, logits.size(-1)), targets.reshape(-1))
@@ -55,6 +53,7 @@ class GopilotTask(flame.SimpleTask):
             if num_active_elements == 0:
                 num_active_elements = torch.tensor(1e-8)
             loss = total_loss / num_active_elements
+            outputs.clear()
 
         loss_value = loss.item()
         self.step_loss.append(loss_value)

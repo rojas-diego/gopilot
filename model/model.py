@@ -13,7 +13,7 @@ class GopilotConfig:
     feedforward_dimensions: int
 
 class GopilotModel(GPTBigCodeForCausalLM):
-    def __init__(self, config: GopilotConfig, dropout: float = 0.0):
+    def __init__(self, config: GopilotConfig, dropout: float = 0.0, use_cache: bool = False):
         self._config = config
         super().__init__(
             config=GPTBigCodeConfig(
@@ -25,12 +25,13 @@ class GopilotModel(GPTBigCodeForCausalLM):
                 n_positions=config.context_length,
                 eos_token_id=-1,
                 bos_token_id=-1,
+                use_cache=use_cache,
             )
         )
 
     @classmethod
-    def from_config_file(cls, path: str, dropout: float = 0.0):
-        return cls(GopilotConfig(**yaml.safe_load(open(path, "r"))), dropout=dropout)
+    def from_config_file(cls, path: str, dropout: float = 0.0, use_cache: bool = False):
+        return cls(GopilotConfig(**yaml.safe_load(open(path, "r"))), dropout=dropout, use_cache=use_cache)
 
     def get_config(self) -> GopilotConfig:
         return self._config
