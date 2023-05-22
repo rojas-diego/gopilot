@@ -236,6 +236,9 @@ class AdvancedGoScannerTokenizer(Tokenizer):
 
         return new_tokens
 
+    def encode_batch(self, sequences: Iterable[str]) -> List[List[int]]:
+        return [self.encode(sequence) for sequence in sequences]
+
     def decode(self, ids: List[int]) -> str:
         return ''.join([self.id_to_token(id) for id in ids])
 
