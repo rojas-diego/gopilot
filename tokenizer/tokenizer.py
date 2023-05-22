@@ -120,12 +120,12 @@ class GopilotTokenizer(Tokenizer):
         expanded_tokens = []
         removing_spaces_after = False
         for i, token_name in enumerate(scan_result.names):
+            if removing_spaces_after and token_name == 'SPACE':
+                continue
             if token_name in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER or token_name == 'SPACE':
                 removing_spaces_after = True
             elif token_name != 'SPACE':
                 removing_spaces_after = False
-            if removing_spaces_after and token_name == 'SPACE':
-                continue
             if token_name in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
                 while expanded_tokens[-1] == space_id:
                     expanded_tokens = expanded_tokens[:-1]
