@@ -39,7 +39,7 @@ docker run \
         --tokenizer hugging-face \
         --tokenizer-cf tokenizer/config/hugging-face.json \
         --s3-dataset-prefix datasets/the-stack-dedup-v1.2/hugging-face-pretokenized \
-        --gradient-accumulation-steps 32 \
+        --gradient-accumulation-steps 64 \
         --batch-size 4 \
         --lr 0.0002 \
         --token-budget 10000000000 \

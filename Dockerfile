@@ -45,3 +45,9 @@ COPY ./*.py ./
 
 # Build the shared library
 RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.go
+
+# Triton leaks 32 bytes on every kernel invocation. The 2.0.0 release has been
+# amended to fix this issue hence we must uninstall and reinstall the package.
+# See https://github.com/pytorch/pytorch/issues/96937
+RUN pip uninstall triton
+RUN pip install triton==2.0.0
