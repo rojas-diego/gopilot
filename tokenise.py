@@ -21,3 +21,4 @@ if __name__ == "__main__":
     print("----- Decoded -----", [tok.id_to_token(id) for id in tok.encode(stdin_contents)], sep="\n")
     print("----- Reconstructed -----", tok.decode(tok.encode(stdin_contents)), sep="\n")
     print("----- Reconstruction Status -----", "Success" if tok.decode(tok.encode(stdin_contents)) == stdin_contents else "Failure", sep="\n")
+    print("----- Character to token ratio -----", round(len(stdin_contents) / len(tok.encode(stdin_contents)), ndigits=2), sep="\n")
