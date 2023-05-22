@@ -55,7 +55,6 @@ class RunArgs:
     neptune: bool
     compile: bool
     checkpoints_dir: str
-    mem_profile: bool
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
