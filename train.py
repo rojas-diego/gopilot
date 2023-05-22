@@ -127,12 +127,19 @@ if __name__ == '__main__':
     else:
         tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
+    # Configure optimizer, learning rate scheduler
+    tokens_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
+    total_steps = int(tp_args.token_budget) // tokens_per_batch
+    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
+    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon) # TODO: betas should be made configurable
+    scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps))
+
     # Configure the tracker
     tracker = flame.NeptuneTracker("rojasdiegopro/gopilot") if (flame.neptune_is_available() and run_args.neptune) else flame.NoopTracker()
     tracker.track_hyperparameters(vars(args))
     tracker.track_hyperparameters(vars(tp_args))
     tracker.track_hyperparameters(vars(model.get_config()))
-    tracker.track_hyperparameters({"dataset": s3_args.s3_dataset_prefix})
+    tracker.track_hyperparameters({"dataset": s3_args.s3_dataset_prefix, "tokens_per_batch": tokens_per_batch, "total_steps": total_steps, "model_size": flame.model_size(model)})
 
     # Load the dataset
     dataset = DistributedGopilotDataset(
@@ -145,13 +152,6 @@ if __name__ == '__main__':
         world_size=1,
     )
     loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", prefetch_factor=32)
-
-    # Configure optimizer, learning rate scheduler
-    num_tokens_ingested_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
-    total_steps = int(tp_args.token_budget) // num_tokens_ingested_per_batch
-    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {num_tokens_ingested_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon) # TODO: betas should be made configurable
-    scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps))
 
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
