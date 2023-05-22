@@ -251,42 +251,5 @@ class TorchProfilingHandler:
         self.__exit__(None, None, None)
 
 
-class MemoryProfilingHandler:
-    def __init__(self, max_steps_interval: int = 64, max_time_interval_sec: int = 60*15, num_lines: int = 10, trigger_gc: bool = True):
-        self.max_steps_interval = max_steps_interval
-        self.max_time_interval_sec = max_time_interval_sec
-        self.num_lines = num_lines
-        self.trigger_gc = trigger_gc
-        self.last_step_idx = 0
-        self.last_step_ts = time.time()
-        self.start_of_training_snapshot = None
-
-    def on_train_start(self, trainer: Trainer):
-        tracemalloc.start()
-        self.start_of_training_snapshot = tracemalloc.take_snapshot()
-        logging.info(f"Memory profiling enabled. Results will be logged every {self.max_steps_interval} steps or {self.max_time_interval_sec} seconds.")
-
-    def on_step(self, trainer: Trainer, epoch_idx: int, batch_idx: int, step_idx: int, metrics: List[Metric]):
-        if self._should_profile(step_idx):
-            current_snapshot = tracemalloc.take_snapshot()
-            if self.start_of_training_snapshot is not None:
-                stats = current_snapshot.compare_to(self.start_of_training_snapshot, "lineno")
-                stats.sort(key=lambda stat: stat.size_diff, reverse=True)
-                for stat in stats[:self.num_lines]:
-                    logging.info(f"Snapshot: {stat}")
-            self.last_step_idx = step_idx
-            self.last_step_ts = time.time()
-            if self.trigger_gc:
-                logging.info(f"Running garbage collection")
-                gc.collect()
-
-    def _should_profile(self, step_idx: int):
-        if step_idx - self.last_step_idx >= self.max_steps_interval:
-            return True
-        if time.time() - self.last_step_ts >= self.max_time_interval_sec:
-            return True
-        return False
-
-
 class NoopHandler:
     pass

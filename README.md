@@ -48,8 +48,7 @@ docker run \
         --s3-checkpoints \
         --warmup 1000 \
         --neptune \
-        --compile \
-        --mem-profile
+        --compile
 ```
 
 ### Inference Server
