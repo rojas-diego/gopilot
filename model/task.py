@@ -94,6 +94,6 @@ class GopilotTask(flame.SimpleTask):
         self.step_loss = []
 
         return [
-            flame.Metric("loss", step_loss_value, step=self.total_tokens_ingested),
+            flame.Metric("loss", step_loss_value),
             flame.Metric("lr", self.optimizer.param_groups[0]["lr"]),
         ]
