@@ -133,7 +133,7 @@ class GopilotTokenizer(Tokenizer):
             elif token_name != 'SPACE':
                 removing_spaces_after = False
             if token_name in self.GO_TOKENS_WITH_SPACE_BEFORE_AFTER:
-                while expanded_tokens[-1] == space_id:
+                while len(expanded_tokens) > 0 and expanded_tokens[-1] == space_id:
                     expanded_tokens = expanded_tokens[:-1]
             # Expanded tokens
             if token_name in ['IDENT', 'COMMENT', 'STRING', 'INT', 'FLOAT', 'IMAG', 'CHAR']:
