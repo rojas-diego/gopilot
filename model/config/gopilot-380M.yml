@@ -1,4 +1,4 @@
-context_length: 512
+context_length: 768
 embedding_dimensions: 1280
 num_layers: 24
 num_heads: 16
