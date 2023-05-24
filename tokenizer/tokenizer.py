@@ -174,6 +174,7 @@ class GopilotTokenizer(Tokenizer):
                     decoded += token_literal
                     if token_literal in self.GO_TOKENS_TO_REMOVE_SPACES_AFTER:
                         decoded += ' '
+        decoded += self.tokenizer.decode(sequence_of_hf_tokens)[1:]
         return decoded
 
     def id_to_token(self, id: int) -> str:
