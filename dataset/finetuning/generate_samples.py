@@ -5,22 +5,100 @@ import os
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+packages = [
+    "middleware",
+    "models",
+    "routes",
+    "services",
+    "utils",
+    "transactions",
+    "validation",
+    "views",
+    "controllers",
+    "config",
+    "db",
+    "handlers",
+    "helpers",
+    "migrations",
+    "raft",
+    "scripts",
+    "templates",
+    "ssh",
+    "storage",
+    "pathfinding",
+    "tcp",
+    "udp",
+    "http",
+    "websocket",
+    "rpc",
+    "json",
+    "xml",
+    "yaml",
+    "csv",
+    "sql",
+    "redis",
+    "mongodb",
+    "postgresql",
+    "mysql",
+    "sqlite",
+    "cassandra",
+    "aws",
+    "gcp",
+    "azure",
+    "kubernetes",
+    "docker",
+    "helm",
+    "terraform",
+    "ansible",
+    "puppet",
+    "chef",
+    "saltstack",
+    "git",
+    "github",
+    "gitlab",
+    "bitbucket",
+    "jira",
+    "slack",
+    "discord",
+    "zoom",
+    "google",
+    "sort",
+    "search",
+    "filter",
+    "mapreduce",
+    "zookeeper",
+    "kafka",
+    "rabbitmq",
+    "nats",
+    "grpc",
+    "protobuf",
+    "jwt",
+    "oauth",
+    "prometheus",
+    "grafana",
+    "elasticsearch",
+    "kibana",
+    "logstash",
+    "fluentd",
+    "datadog",
+]
+
 system_prompt = """
 Your task is to generate idiomatic snippets of complete Go files that will be used to fine-tune a Code LLM. 
 
-- The snippets must reflect the full range of projects people develop using Go.
-- The snippets must vary in length and complexity and in nature.
-- The snippets must reflect industry usage of Go in real-world projects.
-- The snippets must not be dummy examples that would not be found in actual projects.
-- The snippets must display idiomatic usage of Go through best practices and common patterns.
-- The snippets must show how to use the standard library and common third-party libraries.
+- The snippets must 
+    - Reflect the full range of projects people develop using Go.
+    - Vary in length and complexity and in nature.
+    - Reflect industry usage of Go in real-world projects.
+    - Must show how to use the common third-party libraries.
+    - Must not be from the `main` package, but rather a diverse set of packages.
+    - May or may not be a test file.
+    - Should not be a single function or a single line of code.
 
 Output only the code, one sample per message.
 """
 
-example_prompt = """
-New Snippet
-"""
+new_example_prompt = lambda package: "New Snippet. Package: " + package
 
 example_response = """
 package posts
@@ -80,34 +158,35 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 \tw.WriteHeader(http.StatusOK)
 \tfmt.Fprintf(w, "Post: %v", post)
 }
-
-func main() {
-\thttp.HandleFunc("/posts", createPost)
-\thttp.HandleFunc("/posts/", getPost)
-
-\tlog.Fatal(http.ListenAndServe(":8080", nil))
-}
 """
 
-conversation = [{"role": "system", "content": system_prompt},
-        {"role": "user", "content": example_prompt},
+new_example_conversation = lambda package: [{"role": "system", "content": system_prompt},
+        {"role": "user", "content": new_example_prompt("posts")},
         {"role": "assistant", "content": example_response},
-        {"role": "user", "content": example_prompt}]
+        {"role": "user", "content": new_example_prompt(package)}]
 
-with open('dataset/finetuning/ai-samples.jsonl', 'w') as f:
+
+with open('dataset/finetuning/ai-samples.jsonl', 'a') as f:
     for i in range(1, 10):
+        package = random.choice(packages)
+        package = package if random.random() < 0.8 else package + "_test"
+        temperature = random.uniform(0.3, 1.2)
+
+        print("Generating 2 sample for package '" + package + "' with temperature " + str(temperature))
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=conversation,
-            # Random temperate between 0.5 and 1.5
-            temperature=random.uniform(0.5, 1.5),
+            messages=new_example_conversation(package),
+            temperature=temperature,
+            n=2,
         )
 
         # Extract the choices (samples) from the response
-        samples = [choice['message']['content'].strip() for choice in response.choices]
-        print("Generated:", samples[0])
+        samples = [choice['message']['content'].strip() for choice in response.choices] # type: ignore
 
         # Save the samples to a JSONL file
         for sample in samples:
+            print("--- Sample ---")
+            print(sample)
             f.write(json.dumps({"sample": sample}) + os.linesep)
             f.flush()
