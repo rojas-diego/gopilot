@@ -8,6 +8,7 @@ from .preprocessing_job import PreprocessingJob
 
 class TrainTokenizerJob(PreprocessingJob):
     def run(self):
+        super().run()
         trainer: Trainer = self.tokenizer.new_trainer( # type: ignore
             vocab_size=2**15,
             special_tokens=["[UNK]", "[EOS]", "[PAD]"],

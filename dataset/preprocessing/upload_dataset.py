@@ -20,6 +20,7 @@ def num_byte_to_human_readable(num_bytes: int) -> str:
 
 class UploadTheStackJob(PreprocessingJob):
     def run(self):
+        super().run()
         the_stack_dedup_go = datasets.load_dataset('bigcode/the-stack-dedup', data_dir="data/go", split="train", use_auth_token=True)
 
         num_samples_per_shard = 64000

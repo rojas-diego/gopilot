@@ -1,6 +1,9 @@
 # This script launches the jobs defined in `preprocessing`.
 import argparse
 import logging
+import threading
+import multiprocessing
+multiprocessing.set_start_method('fork') # only on unix
 
 from dataset import *
 
@@ -19,11 +22,14 @@ if __name__ == "__main__":
 
     job_name = args.job
     delattr(args, "job")
+    pool = multiprocessing.Pool()
 
     if job_name == "tokenize-with-huggingface":
         job = TokenizeWithHuggingFaceJob(**vars(args))
     elif job_name == "tokenize-with-gopilot":
-        job = TokenizeWithGopilotJob(**vars(args))
+        job = TokenizeWithGopilotJob(**vars(args), odd=False)
+        job2 = TokenizeWithGopilotJob(**vars(args), odd=True)
+        res2 = pool.apply_async(job2.run)
     elif job_name == "train-huggingface-tokenizer":
         job = TrainHuggingFaceTokenizerJob(**vars(args))
     elif job_name == "train-gopilot-tokenizer":
@@ -33,4 +39,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unknown job {args.job}")
 
-    job.run()
+    pool.apply(job.run)
+    if job_name == "tokenize-with-gopilot":
+        res2.wait()

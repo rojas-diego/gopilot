@@ -17,6 +17,7 @@ class TokenizeWithHuggingFaceJob(PreprocessingJob):
         """Tokenizes the dataset using the given tokenizer. For each chunk of
         the dataset, produce a .npy file containing a single continguous token
         array."""
+        super().run()
         total_num_tokens = 0
         self.tokenizer: Tokenizer = Tokenizer.from_file("tokenizer/config/hugging-face.json")
         for file in self.files():
@@ -35,12 +36,23 @@ class TokenizeWithHuggingFaceJob(PreprocessingJob):
 
 
 class TokenizeWithGopilotJob(PreprocessingJob):
+    def __init__(self, odd, **kwargs):
+        super(TokenizeWithGopilotJob, self).__init__(**kwargs)
+        self.odd = odd
+        print('Starting TokenizeWithGopilotJob')
+
     def run(self):
         """For each chunk of the dataset, produce a .npy file containing a
         single continguous token array."""
+        super().run()
+        print('run called', flush=True)
         total_num_tokens = 0
         self.tokenizer = GopilotTokenizer.from_file("tokenizer/config/gopilot.json")
         for file in self.files():
+            if (int(file[-9]) % 2 == 0) == self.odd:
+                print(f'Skipping this file: {file} (odd={self.odd})')
+                continue
+            print(f'TOKENIZING this file: {file} (odd={self.odd})')
             df = pandas.read_parquet(file)
             batch_ids = self.tokenizer.encode_batch(df["content"])
             num_tokens = sum([len(ids) for ids in batch_ids])
