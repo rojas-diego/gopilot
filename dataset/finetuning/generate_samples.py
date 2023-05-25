@@ -81,6 +81,7 @@ packages = [
     "logstash",
     "fluentd",
     "datadog",
+    "parser",
 ]
 
 system_prompt = """
@@ -98,7 +99,9 @@ Your task is to generate idiomatic snippets of complete Go files that will be us
 Output only the code, one sample per message.
 """
 
-new_example_prompt = lambda package: "New Snippet. Package: " + package
+
+def new_example_prompt(package): return "New Snippet. Package: " + package
+
 
 example_response = """
 package posts
@@ -160,10 +163,11 @@ func getPost(w http.ResponseWriter, r *http.Request) {
 }
 """
 
-new_example_conversation = lambda package: [{"role": "system", "content": system_prompt},
-        {"role": "user", "content": new_example_prompt("posts")},
-        {"role": "assistant", "content": example_response},
-        {"role": "user", "content": new_example_prompt(package)}]
+
+def new_example_conversation(package): return [{"role": "system", "content": system_prompt},
+                                               {"role": "user", "content": new_example_prompt("posts")},
+                                               {"role": "assistant", "content": example_response},
+                                               {"role": "user", "content": new_example_prompt(package)}]
 
 
 with open('dataset/finetuning/ai-samples.jsonl', 'a') as f:
@@ -182,7 +186,7 @@ with open('dataset/finetuning/ai-samples.jsonl', 'a') as f:
         )
 
         # Extract the choices (samples) from the response
-        samples = [choice['message']['content'].strip() for choice in response.choices] # type: ignore
+        samples = [choice['message']['content'].strip() for choice in response.choices]  # type: ignore
 
         # Save the samples to a JSONL file
         for sample in samples:
