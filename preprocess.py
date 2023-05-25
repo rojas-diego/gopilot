@@ -27,9 +27,7 @@ if __name__ == "__main__":
     if job_name == "tokenize-with-huggingface":
         job = TokenizeWithHuggingFaceJob(**vars(args))
     elif job_name == "tokenize-with-gopilot":
-        job = TokenizeWithGopilotJob(**vars(args), odd=False)
-        job2 = TokenizeWithGopilotJob(**vars(args), odd=True)
-        res2 = pool.apply_async(job2.run)
+        job = TokenizeWithGopilotJob(**vars(args))
     elif job_name == "train-huggingface-tokenizer":
         job = TrainHuggingFaceTokenizerJob(**vars(args))
     elif job_name == "train-gopilot-tokenizer":
@@ -38,7 +36,4 @@ if __name__ == "__main__":
         job = UploadTheStackJob(**vars(args))
     else:
         raise ValueError(f"Unknown job {args.job}")
-
-    pool.apply(job.run)
-    if job_name == "tokenize-with-gopilot":
-        res2.wait()
+    job.run()

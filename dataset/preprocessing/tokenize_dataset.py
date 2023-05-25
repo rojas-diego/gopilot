@@ -10,6 +10,8 @@ from tokenizer import GopilotTokenizer
 from tokenizers import Tokenizer
 
 from .preprocessing_job import PreprocessingJob
+import multiprocessing
+import functools
 
 
 class TokenizeWithHuggingFaceJob(PreprocessingJob):
@@ -36,30 +38,28 @@ class TokenizeWithHuggingFaceJob(PreprocessingJob):
 
 
 class TokenizeWithGopilotJob(PreprocessingJob):
-    def __init__(self, odd, **kwargs):
+    def __init__(self, **kwargs):
         super(TokenizeWithGopilotJob, self).__init__(**kwargs)
-        self.odd = odd
-        print('Starting TokenizeWithGopilotJob')
+        logging.info('Starting TokenizeWithGopilotJob')
 
     def run(self):
         """For each chunk of the dataset, produce a .npy file containing a
         single continguous token array."""
         super().run()
-        print('run called', flush=True)
+        logging.info('run called')
         total_num_tokens = 0
         self.tokenizer = GopilotTokenizer.from_file("tokenizer/config/gopilot.json")
         for file in self.files():
-            if (int(file[-9]) % 2 == 0) == self.odd:
-                print(f'Skipping this file: {file} (odd={self.odd})')
-                continue
-            print(f'TOKENIZING this file: {file} (odd={self.odd})')
-            df = pandas.read_parquet(file)
-            batch_ids = []
-            for i in range(10):
-                print(f'TOKENIZING {file}: {i}0% done')
-                batch_ids += self.tokenizer.encode_batch(df["content"][int(i*len(df)/10):int((i+1)*len(df)/10)])
-            print(f'Done TOKENIZING {file}.')
-            del df
+            logging.info(f'TOKENIZING this file: {file}')
+            df = pandas.read_parquet(file, columns=['content'])
+
+            with multiprocessing.Pool() as p:
+                batch_ids_uncollapsed = p.map(self.tokenizer.encode_batch, map(
+                    lambda i: df["content"][int(i*len(df)/100):int((i+1)*len(df)/100)],
+                    range(100)
+                ))
+            batch_ids = functools.reduce(lambda a,b: a+b, batch_ids_uncollapsed)
+
             num_tokens = sum([len(ids) for ids in batch_ids])
             total_num_tokens += num_tokens
             ids = numpy.empty(num_tokens, dtype=numpy.uint16)
