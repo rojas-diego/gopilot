@@ -1,0 +1,223 @@
+{"description": "HTTP server to deliver static files from a specific directory.", "package": "staticserv"}
+{"description": "A simple REST API that communicates with a PostgreSQL database.", "package": "restapi"}
+{"description": "Calculating Fibonacci sequence using recursion.", "package": "fiborecursion"}
+{"description": "A program to read, write and update entries in a CSV file.", "package": "csvmanip"}
+{"description": "A program to query Google's Geocoding API and parse the resulting JSON.", "package": "geocode"}
+{"description": "A concurrent web scraper to extract data from web pages.", "package": "webscraper"}
+{"description": "A simple chat server using WebSockets.", "package": "chatserver"}
+{"description": "Reading and parsing an XML document.", "package": "xmlparser"}
+{"description": "Sending an email via SMTP.", "package": "smtpmail"}
+{"description": "A microservice for user authentication and registration.", "package": "authservice"}
+{"description": "Creating and managing a TCP connection.", "package": "tcpconn"}
+{"description": "A program to interface with an SQL database using the database/sql package.", "package": "sqlbridge"}
+{"description": "File encryption and decryption using AES.", "package": "aesencdec"}
+{"description": "A concurrent job queue implementation.", "package": "jobqueue"}
+{"description": "A program to generate and manage JSON Web Tokens (JWT).", "package": "jwtgen"}
+{"description": "A simple gRPC server implementation.", "package": "grpcserv"}
+{"description": "A command line tool to interact with a MySQL database.", "package": "mysqltool"}
+{"description": "A program to generate QR codes.", "package": "qrgen"}
+{"description": "A program to implement LRU (Least Recently Used) cache mechanism.", "package": "lrucache"}
+{"description": "A web crawler that parses and stores URLs.", "package": "webcrawler"}
+{"description": "A server that serves a gRPC service for managing a todo list.", "package": "todogrpc"}
+{"description": "A distributed key-value store using the Raft consensus algorithm.", "package": "raftkvstore"}
+{"description": "A program to implement a stack data structure.", "package": "stackimpl"}
+{"description": "A program to convert JSON to XML.", "package": "json2xml"}
+{"description": "A program to implement a simple blockchain.", "package": "blockchain"}
+{"description": "A service to monitor system metrics like CPU, memory, and disk usage.", "package": "sysmon"}
+{"description": "A program to compress and decompress files using gzip.", "package": "gziputil"}
+{"description": "A CLI tool for managing Docker containers.", "package": "dockercli"}
+{"description": "An HTTP client to send GET and POST requests.", "package": "httpclient"}
+{"description": "A program to implement a radix tree data structure.", "package": "radxtree"}
+{"description": "A simple RabbitMQ consumer and producer implementation.", "package": "rabbitmqimpl"}
+{"description": "A program to generate prime numbers.", "package": "primegen"}
+{"description": "A program to implement HTTP/2 server push.", "package": "http2push"}
+{"description": "A service for realtime multiplayer games using WebSockets.", "package": "gamesockets"}
+{"description": "A client to communicate with a Kubernetes cluster.", "package": "kubeclient"}
+{"description": "A program to perform CRUD operations with MongoDB.", "package": "mongocrud"}
+{"description": "A service to stream real-time updates using Server-Sent Events.", "package": "ssestream"}
+{"description": "A program to read and process large CSV files concurrently.", "package": "bigcsv"}
+{"description": "A program to interact with the GitHub API.", "package": "githubapi"}
+{"description": "A library for managing and validating JWTs (JSON Web Tokens).", "package": "jwtlib"}
+{"description": "A program to convert markdown to HTML.", "package": "md2html"}
+{"description": "A program to hash passwords securely using bcrypt.", "package": "bcrpythash"}
+{"description": "A rate limiter middleware for HTTP servers.", "package": "ratelimiter"}
+{"description": "A RESTful API for a bookstore using Gorilla Mux.", "package": "bookapi"}
+{"description": "A program to encrypt and decrypt messages using RSA.", "package": "rsaencdec"}
+{"description": "A Twitter bot to automatically reply to mentions.", "package": "twitterbot"}
+{"description": "A web server with hot-reloading feature.", "package": "hotreloadserver"}
+{"description": "A worker pool to distribute tasks among multiple goroutines.", "package": "workerpool"}
+{"description": "A library to handle environment variables.", "package": "envhandler"}
+{"description": "A program to create and manage WebSocket connections.", "package": "wsmanage"}
+{"description": "A program to process large text files line by line.", "package": "textproc"}
+{"description": "A program to serve files over HTTP/2.", "package": "http2fileserver"}
+{"description": "A tool for making HTTP requests with customizable headers.", "package": "httpreq"}
+{"description": "A program to generate PDFs from HTML templates.", "package": "pdfgen"}
+{"description": "A tool for interacting with the Google Cloud Storage API.", "package": "gcsapi"}
+{"description": "An MQTT client for publishing and subscribing to topics.", "package": "mqttclient"}
+{"description": "A library for reading, writing, and manipulating Excel files.", "package": "excelparse"}
+{"description": "A package for creating and managing Unix sockets.", "package": "unixsock"}
+{"description": "A gRPC client for making requests to a remote server.", "package": "grpcclient"}
+{"description": "A program to parse and display RSS feeds.", "package": "rssreader"}
+{"description": "A server to process and store form data from a website.", "package": "formdata"}
+{"description": "A library for creating HTTP middleware.", "package": "httpmiddleware"}
+{"description": "A tool for fetching and parsing sitemap XML.", "package": "sitemapfetch"}
+{"description": "A CLI for managing Amazon S3 buckets.", "package": "s3cli"}
+{"description": "A library to handle LDAP (Lightweight Directory Access Protocol) authentication.", "package": "ldapauth"}
+{"description": "A simple load balancer for distributing requests.", "package": "loadbalancer"}
+{"description": "A package to handle data serialization and deserialization using Protocol Buffers.", "package": "protobuff"}
+{"description": "A package for creating and managing named pipes (FIFO).", "package": "namedpipe"}
+{"description": "A tool for handling and validating input from command line flags.", "package": "flaghandler"}
+{"description": "A program to manage and query SQLite databases.", "package": "sqlitehandle"}
+{"description": "A service for handling real-time chat using NATS.", "package": "natschat"}
+{"description": "A program to handle interactions with the ElasticSearch API.", "package": "esclient"}
+{"description": "A package to create and manage distributed locks using Redis.", "package": "redislock"}
+{"description": "A program to parse and extract data from HTML using XPath.", "package": "xpathparser"}
+{"description": "A tool to monitor HTTP traffic in real-time.", "package": "httpmonitor"}
+{"description": "A program for scheduling tasks using cron syntax.", "package": "cronscheduler"}
+{"description": "A program to validate, format and extract data from credit card numbers.", "package": "ccvalidator"}
+{"description": "A package to generate secure random strings and numbers.", "package": "securegen"}
+{"description": "A service for managing and sending push notifications.", "package": "pushnotify"}
+{"description": "A tool to manage and manipulate file and directory paths.", "package": "pathmanip"}
+{"description": "A program to perform batch processing in a distributed system.", "package": "batchproc"}
+{"description": "A package for parsing and formatting dates and times.", "package": "datetimeparse"}
+{"description": "A tool to make concurrent HTTP requests.", "package": "concurhttp"}
+{"description": "A program to extract metadata from image files.", "package": "imagemeta"}
+{"description": "A tool to manage and validate HTTP cookies.", "package": "cookiemanage"}
+{"description": "A program to implement a simple logging system.", "package": "logsimple"}
+{"description": "A service for hosting and managing a blog API.", "package": "blogservice"}
+{"description": "A program to convert YAML to JSON.", "package": "yaml2json"}
+{"description": "A package to create and manage a binary tree data structure.", "package": "bintree"}
+{"description": "A program to encrypt and decrypt messages using the Diffie-Hellman protocol.", "package": "dhencdec"}
+{"description": "A tool to manage and interact with a CouchDB database.", "package": "couchdbclient"}
+{"description": "A package to compute the SHA-256 hash of a file.", "package": "sha256hash"}
+{"description": "A library to compress and decompress data using zlib.", "package": "zlibutil"}
+{"description": "A program to validate and parse URLs.", "package": "urlparse"}
+{"description": "A tool to interact with the Reddit API.", "package": "redditapi"}
+{"description": "A program to generate UUIDs (Universally Unique Identifiers).", "package": "uuidgen"}
+{"description": "A package to manage user sessions in a web application.", "package": "sessions"}
+{"description": "A program to implement a priority queue using a binary heap.", "package": "priqueue"}
+{"description": "A service for managing and routing messages in a distributed system.", "package": "messagerouter"}
+{"description": "A package to convert plain text into slug format for URLs.", "package": "slugify"}
+{"description": "A program to parse and extract data from log files.", "package": "logparser"}
+{"description": "A package to implement a doubly linked list.", "package": "dblinkedlist"}
+{"description": "A program to implement a simple HTTP proxy.", "package": "httpproxy"}
+{"description": "A service for managing WebSocket connections in a real-time application.", "package": "wsmanage"}
+{"description": "A program to parse and manipulate SVG files.", "package": "svgparser"}
+{"description": "A tool to manage and interact with a GraphQL API.", "package": "graphqlclient"}
+{"description": "A package to compute the SHA-3 hash of a file.", "package": "sha3hash"}
+{"description": "A program to generate and validate captcha images.", "package": "captchagen"}
+{"description": "A service for routing HTTP requests based on their method and URL.", "package": "router"}
+{"description": "A tool to monitor and report on system file changes.", "package": "filewatcher"}
+{"description": "A package to implement and manage a Trie data structure.", "package": "trieimpl"}
+{"description": "A service to store and retrieve key-value pairs using a RESTful API.", "package": "kvstore"}
+{"description": "A program to manage and process data from a Kafka stream.", "package": "kafkaclient"}
+{"description": "A package to create and manage Unix signals.", "package": "signals"}
+{"description": "A program to implement a simple FTP client.", "package": "ftpclient"}
+{"description": "A service for managing and processing webhooks.", "package": "webhookmgr"}
+{"description": "A program to perform CRUD operations with a Firebase Realtime Database.", "package": "firebasedb"}
+{"description": "A package to implement a bloom filter.", "package": "bloomfilter"}
+{"description": "A service to manage and route emails.", "package": "emailrouter"}
+{"description": "A tool to monitor and report on network traffic.", "package": "networkmon"}
+{"description": "A program to implement a binary search algorithm.", "package": "binsearch"}
+{"description": "A package to encode and decode Base64 data.", "package": "base64coder"}
+{"description": "A service for managing user profiles.", "package": "profileservice"}
+{"description": "A program to generate and validate checksums for files.", "package": "checksumgen"}
+{"description": "A package to create and manage hash maps.", "package": "hashmap"}
+{"description": "A tool to manage and interact with a DynamoDB database.", "package": "dynamodbclient"}
+{"description": "A program to process incoming requests in a RESTful API.", "package": "restprocessor"}
+{"description": "A service for managing user accounts.", "package": "accountservice"}
+{"description": "A program to compute the Hamming distance between two strings.", "package": "hammingdist"}
+{"description": "A package to implement a quicksort algorithm.", "package": "quicksort"}
+{"description": "A tool to manage and interact with a Prometheus server.", "package": "promclient"}
+{"description": "A service for managing file uploads and downloads.", "package": "filetransferservice"}
+{"description": "A program to perform data analysis on CSV files.", "package": "csvdataanalysis"}
+{"description": "A tool to scan and report on open network ports.", "package": "portscanner"}
+{"description": "A package to implement a circular buffer data structure.", "package": "circbuffer"}
+{"description": "A program to compute the greatest common divisor of two numbers.", "package": "gcdcalc"}
+{"description": "A service to manage and track inventory for a warehouse.", "package": "inventoryservice"}
+{"description": "A tool to interact with the Slack API.", "package": "slackapi"}
+{"description": "A program to parse command line arguments.", "package": "argparser"}
+{"description": "A package to generate and validate digital signatures.", "package": "digisign"}
+{"description": "A service for managing and sending SMS messages.", "package": "smsservice"}
+{"description": "A program to monitor and report on system resource usage.", "package": "sysresmon"}
+{"description": "A tool to manage and interact with an Apache Cassandra database.", "package": "cassandraclient"}
+{"description": "A package to implement a linked list.", "package": "linkedlist"}
+{"description": "A service for managing comments in a blogging platform.", "package": "commentservice"}
+{"description": "A program to perform CRUD operations with an Oracle database.", "package": "oracledb"}
+{"description": "A tool to manage and interact with a Trello board.", "package": "trelloclient"}
+{"description": "A package to encode and decode data using the ASCII85 format.", "package": "ascii85coder"}
+{"description": "A service to manage a job board, including posting and applying for jobs.", "package": "jobservice"}
+{"description": "A program to monitor and report on website uptime.", "package": "uptimechecker"}
+{"description": "A tool to manage and interact with a Microsoft Azure Blob Storage.", "package": "azureblobclient"}
+{"description": "A package to implement a merge sort algorithm.", "package": "mergesort"}
+{"description": "A service for managing order processing in an ecommerce application.", "package": "orderservice"}
+{"description": "A program to perform CRUD operations with a MariaDB database.", "package": "mariadbclient"}
+{"description": "A tool to manage and interact with a Jira project.", "package": "jiraclient"}
+{"description": "A package to implement a binary search tree.", "package": "bintreesearch"}
+{"description": "A service to manage customer reviews and ratings.", "package": "reviewservice"}
+{"description": "A program to perform CRUD operations with a PostgreSQL database.", "package": "postgresclient"}
+{"description": "A tool to manage and interact with an Elasticsearch cluster.", "package": "escluster"}
+{"description": "A package to implement a radix sort algorithm.", "package": "radixsort"}
+{"description": "A service for managing address books.", "package": "addressservice"}
+{"description": "A program to implement a basic HTTP client.", "package": "httpclient"}
+{"description": "A tool to manage and interact with a Neo4j database.", "package": "neo4jclient"}
+{"description": "A package to implement a bucket sort algorithm.", "package": "bucketsort"}
+{"description": "A service to manage appointment scheduling.", "package": "appointmentservice"}
+{"description": "A program to implement a simple IMAP client.", "package": "imapclient"}
+{"description": "A tool to manage and interact with a Firebase Firestore database.", "package": "firestoreclient"}
+{"description": "A package to implement a heap sort algorithm.", "package": "heapsort"}
+{"description": "A service for managing and analyzing user behavior data.", "package": "behaviorservice"}
+{"description": "A program to implement a simple Telnet client.", "package": "telnetclient"}
+{"description": "A tool to manage and interact with a Google Drive account.", "package": "driveclient"}
+{"description": "A package to implement a bubble sort algorithm.", "package": "bubblesort"}
+{"description": "A service to manage and track user achievements.", "package": "achievementservice"}
+{"description": "A program to implement a simple SNMP client.", "package": "snmpclient"}
+{"description": "A tool to manage and interact with a Google Sheets document.", "package": "sheetsclient"}
+{"description": "A package to implement a selection sort algorithm.", "package": "selectionsort"}
+{"description": "A service for managing and analyzing customer feedback.", "package": "feedbackservice"}
+{"description": "A program to perform CRUD operations with a SQL Server database.", "package": "sqlserverclient"}
+{"description": "A tool to manage and interact with a Google Calendar.", "package": "calendarclient"}
+{"description": "A package to implement a shell sort algorithm.", "package": "shellsort"}
+{"description": "A service for managing and tracking employee performance.", "package": "performanceservice"}
+{"description": "A program to implement a simple SMTP client.", "package": "smtpclient"}
+{"description": "A tool to manage and interact with a Google Analytics account.", "package": "analyticsclient"}
+{"description": "A package to implement an insertion sort algorithm.", "package": "insertionsort"}
+{"description": "A service for managing and tracking project tasks.", "package": "taskservice"}
+{"description": "A program to implement a simple FTP server.", "package": "ftpserver"}
+{"description": "A tool to manage and interact with a Google Docs document.", "package": "docsclient"}
+{"description": "A package to implement a counting sort algorithm.", "package": "countingsort"}
+{"description": "A service for managing and tracking sales leads.", "package": "leadservice"}
+{"description": "A program to implement a simple DNS client.", "package": "dnsclient"}
+{"description": "A tool to manage and interact with a Google Slides presentation.", "package": "slidesclient"}
+{"description": "A package to implement a cocktail sort algorithm.", "package": "cocktailsort"}
+{"description": "A service for managing and tracking customer support tickets.", "package": "ticketservice"}
+{"description": "A program to implement a simple POP3 client.", "package": "pop3client"}
+{"description": "A tool to manage and interact with a Google Tasks list.", "package": "tasksclient"}
+{"description": "A package to implement a pancake sort algorithm.", "package": "pancakesort"}
+{"description": "A service for managing and tracking inventory shipments.", "package": "shipmentservice"}
+{"description": "A program to perform CRUD operations with a Redis database.", "package": "redisclient"}
+{"description": "A tool to manage and interact with a Google Photos account.", "package": "photosclient"}
+{"description": "A package to implement a gnome sort algorithm.", "package": "gnomesort"}
+{"description": "A service for managing and tracking package deliveries.", "package": "deliveryservice"}
+{"description": "A program to implement a simple HTTP server.", "package": "httpserver"}
+{"description": "A tool to manage and interact with a Google Maps.", "package": "mapsclient"}
+{"description": "A package to implement a comb sort algorithm.", "package": "combsort"}
+{"description": "A service for managing and tracking business expenses.", "package": "expenseservice"}
+{"description": "A program to implement a simple POP3 server.", "package": "pop3server"}
+{"description": "A tool to manage and interact with a Google Hangouts chat.", "package": "hangoutsclient"}
+{"description": "A package to implement a cycle sort algorithm.", "package": "cyclesort"}
+{"description": "A service for managing and tracking customer loyalty rewards.", "package": "rewardsservice"}
+{"description": "A program to perform CRUD operations with a MongoDB database.", "package": "mongodbclient"}
+{"description": "A tool to manage and interact with a Google Cloud Storage bucket.", "package": "gcsclient"}
+{"description": "A package to implement a pigeonhole sort algorithm.", "package": "pigeonholesort"}
+{"description": "A service for managing and tracking marketing campaigns.", "package": "campaignservice"}
+{"description": "A program to implement a simple IMAP server.", "package": "imapserver"}
+{"description": "A tool to manage and interact with a Google Cloud Firestore database.", "package": "firestoreclient"}
+{"description": "A package to implement a bogo sort algorithm.", "package": "bogosort"}
+{"description": "A service for managing and tracking software releases.", "package": "releaseservice"}
+{"description": "A program to implement a simple DNS server.", "package": "dnsserver"}
+{"description": "A tool to manage and interact with a Google Cloud Bigtable database.", "package": "bigtableclient"}
+{"description": "A package to implement a stooge sort algorithm.", "package": "stoogesort"}
+{"description": "A service for managing and tracking software bugs.", "package": "bugservice"}
+{"description": "A program to implement a simple SNMP server.", "package": "snmpserver"}
+{"description": "A tool to manage and interact with a Google Cloud Pub/Sub topic.", "package": "pubsub"}
