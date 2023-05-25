@@ -54,7 +54,12 @@ class TokenizeWithGopilotJob(PreprocessingJob):
                 continue
             print(f'TOKENIZING this file: {file} (odd={self.odd})')
             df = pandas.read_parquet(file)
-            batch_ids = self.tokenizer.encode_batch(df["content"])
+            batch_ids = []
+            for i in range(10):
+                print(f'TOKENIZING {file}: {i}0% done')
+                batch_ids += self.tokenizer.encode_batch(df["content"][int(i*len(df)/10):int((i+1)*len(df)/10)])
+            print(f'Done TOKENIZING {file}.')
+            del df
             num_tokens = sum([len(ids) for ids in batch_ids])
             total_num_tokens += num_tokens
             ids = numpy.empty(num_tokens, dtype=numpy.uint16)
