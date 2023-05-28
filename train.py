@@ -25,6 +25,7 @@ class Args:
     tokenizer: str
     tokenizer_cf: str
 
+
 @dataclass
 class TrainingParametersArgs:
     gradient_accumulation_steps: int
@@ -41,12 +42,14 @@ class TrainingParametersArgs:
     warmup: int
     seed: int
 
+
 @dataclass
 class S3Args:
     s3_bucket: str
     s3_cache_dir: str
     s3_checkpoints: bool
     s3_dataset_prefix: str
+
 
 @dataclass
 class RunArgs:
@@ -55,6 +58,7 @@ class RunArgs:
     neptune: bool
     compile: bool
     checkpoints_dir: str
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -119,7 +123,7 @@ if __name__ == '__main__':
     # Optionally compile model
     if run_args.compile:
         assert run_args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
-        model: GopilotModel = torch.compile(model, backend="inductor") # type: ignore
+        model: GopilotModel = torch.compile(model, backend="inductor")  # type: ignore
 
     # Load the tokenizer
     if args.tokenizer == "gopilot":
@@ -130,8 +134,9 @@ if __name__ == '__main__':
     # Configure optimizer, learning rate scheduler
     tokens_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
     total_steps = int(tp_args.token_budget) // tokens_per_batch
-    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon) # TODO: betas should be made configurable
+    logging.info(
+        f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
+    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon)  # TODO: betas should be made configurable
     scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps))
 
     # Configure the tracker
@@ -151,7 +156,8 @@ if __name__ == '__main__':
         rank=0,
         world_size=1,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", prefetch_factor=32)
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type ==
+                        "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", prefetch_factor=32)
 
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
@@ -161,7 +167,7 @@ if __name__ == '__main__':
             filename=tracker.get_run_id()+"-step={step}-loss={loss:.2f}.pt",
             max_files=3,
             max_step_interval=4096,
-            max_time_interval_sec=60*60*2,
+            max_time_interval_sec=60*60*3,
         ),
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=False),
         flame.TrackingHandler(tracker),
