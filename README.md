@@ -35,13 +35,13 @@ docker run \
     --net host \
     rojasdiego/gopilot:latest \
     python train.py \
-        --model-cf model/config/gopilot-380M.yml \
+        --model-cf model/config/gopilot-290M.yml \
         --tokenizer gopilot \
         --tokenizer-cf tokenizer/config/gopilot.json \
         --s3-dataset-prefix datasets/the-stack-dedup-v1.2/gopilot-pretokenized \
         --gradient-accumulation-steps 64 \
         --batch-size 8 \
-        --lr 0.0003 \
+        --lr 0.0005 \
         --token-budget 20000000000 \
         --device cuda \
         --precision fp16 \

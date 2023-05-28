@@ -30,6 +30,7 @@ class GopilotTask(flame.SimpleTask):
         if backprop:
             self.optimizer.zero_grad(set_to_none=True)
 
+        batch = batch.to(device)
         batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
 
         # Shift the batch by 1 position to create the target batch
