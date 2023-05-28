@@ -94,7 +94,7 @@ class GopilotTask(flame.SimpleTask):
 
         # Update hessian estimate
         if (step_idx+1) % self.estimation_interval == 0:
-            self._update_hessian(batch)
+            self._update_hessian(batch.to(device))
 
         return [
             flame.Metric("loss", step_loss_value),

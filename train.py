@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 
 import flame
-from dataset import DistributedGopilotDataset
+from dataset import GopilotDataset
 from model import GopilotModel, GopilotTask, SophiaG
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
@@ -146,14 +146,12 @@ if __name__ == '__main__':
     tracker.track_hyperparameters({"dataset": s3_args.s3_dataset_prefix, "tokens_per_batch": tokens_per_batch, "total_steps": total_steps, "model_size": flame.model_size(model)})
 
     # Load the dataset
-    dataset = DistributedGopilotDataset(
+    dataset = GopilotDataset(
         s3_args.s3_bucket,
         s3_args.s3_dataset_prefix,
         s3_args.s3_cache_dir,
         window_size=model.get_config().context_length+1,
         stride=model.get_config().context_length,
-        rank=0,
-        world_size=1,
     )
     loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type ==
                         "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")

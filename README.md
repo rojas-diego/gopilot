@@ -24,7 +24,7 @@ A CUDA Docker image is made available. Here are the required parameters.
 ```bash
 docker run \
     -d \
-    --gpus '"device=1"' \
+    --gpus '"device=0"' \
     --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
     --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
     --env AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
@@ -36,11 +36,11 @@ docker run \
     rojasdiego/gopilot:latest \
     python train.py \
         --model-cf model/config/gopilot-290M.yml \
-        --tokenizer gopilot \
-        --tokenizer-cf tokenizer/config/gopilot.json \
-        --s3-dataset-prefix datasets/the-stack-dedup-v1.2/gopilot-pretokenized \
+        --tokenizer hugging-face \
+        --tokenizer-cf tokenizer/config/hugging-face.json \
+        --s3-dataset-prefix datasets/the-stack-dedup-v1.2/hugging-face-pretokenized \
         --gradient-accumulation-steps 64 \
-        --batch-size 8 \
+        --batch-size 12 \
         --lr 0.0005 \
         --token-budget 20000000000 \
         --device cuda \
