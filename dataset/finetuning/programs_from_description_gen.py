@@ -105,7 +105,7 @@ with open('dataset/finetuning/programs-from-descriptions.jsonl', 'a') as f:
         for _ in range(num_lines_to_skip):
             next(prompts)
 
-        logging.info(f"Skipping {num_lines_to_skip} prompts")
+        print(f"Skipping {num_lines_to_skip} prompts")
 
         # Generate samples for the remaining prompts
         for line in prompts:
@@ -113,7 +113,7 @@ with open('dataset/finetuning/programs-from-descriptions.jsonl', 'a') as f:
             # Rest of the code here
             description = prompt["description"]
             package = prompt["package"]
-            temperature = random.uniform(0.3, 1.2)
+            temperature = random.uniform(0.2, 0.6)
             print(f"Generating one sample for package '{package}' with description '{description}' and temperature {temperature:.2f}")
 
             while True:

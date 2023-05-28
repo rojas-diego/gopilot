@@ -16,7 +16,6 @@ from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 @dataclasses.dataclass
 class Args:
-    model: str
     model_cf: str
     tokenizer: str
     tokenizer_cf: str
@@ -47,9 +46,6 @@ class S3Args:
 class RunArgs:
     device: Union[str, torch.device]
     verbose: bool
-    neptune: bool
-    compile: bool
-    checkpoints_dir: str
 
 
 if __name__ == '__main__':
@@ -58,8 +54,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
-    parser.add_argument('--model', type=str, default="Gopilot", help='Name of the model to use.', choices=["gopilot"])
-    parser.add_argument('--tokenizer', type=str, default="Gopilot", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
+    parser.add_argument('--tokenizer', type=str, default="hugging-face", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
     parser.add_argument('--checkpoint-filepath', type=str, default=None, help='Path to the checkpoint file.')
     parser.add_argument('--output-filepath', type=str, default=None, help='Path to the output file.')
     parser.add_argument('--dataset-filepath', type=str, default=None, help='Path to the JSONL dataset file.')
@@ -75,7 +70,7 @@ if __name__ == '__main__':
     tp_parser.add_argument('--num-epochs', type=int, default=1, help='Number of epochs.')
     tp_parser.add_argument('--clip-gradients', type=float, default=1.0, help='Clip gradients.')
     tp_parser.add_argument('--precision', type=str, default="float32", help='Precision.')
-    tp_parser.add_argument('--seed', type=int, default=42, help='Random seed.')
+    tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
@@ -85,11 +80,8 @@ if __name__ == '__main__':
     s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
-    run_parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cpu", "cuda"])
-    run_parser.add_argument('--verbose', action='store_true', help='Verbose.')
-    run_parser.add_argument('--neptune', action='store_true', help='Log to Neptune.')
-    run_parser.add_argument('--compile', action='store_true', help='Compile model.')
-    run_parser.add_argument('--checkpoints-dir', type=str, default=None, help='Checkpoints directory.')
+    run_parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cpu", "cuda", "mps"])
+    run_parser.add_argument('--verbose', action='store_true', default=True, help='Verbose.')
     run_args = run_parser.parse_args(remaining_args)
 
     # Parse args
@@ -115,12 +107,10 @@ if __name__ == '__main__':
     
     # Load model from checkpoint
     checkpoint = torch.load(args.checkpoint_filepath, map_location=run_args.device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-
-    # Optionally compile model
-    if run_args.compile:
-        assert run_args.device.type == "cuda", f"torch.compile() with Triton backend only runs on CUDA compatible devices."
-        model = torch.compile(model, backend="inductor")  # type: ignore
+    for key in list(checkpoint['model'].keys()):
+        if key.startswith("_orig_mod."):
+            checkpoint['model'][key[len("_orig_mod."):]] = checkpoint['model'].pop(key)
+    model.load_state_dict(checkpoint['model'])
 
     # Load the tokenizer
     if args.tokenizer == "gopilot":
@@ -130,7 +120,7 @@ if __name__ == '__main__':
 
     # Load the dataset
     dataset = GopilotFineTuningDataset(args.dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length)
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, shuffle=True, num_workers=1)
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, shuffle=True)
 
     # Define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, eps=tp_args.epsilon, weight_decay=tp_args.weight_decay)

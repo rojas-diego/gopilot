@@ -51,6 +51,27 @@ docker run \
         --compile
 ```
 
+### Fine-tuning
+
+You can fine-tune Gopilot on any JSONL dataset composed of samples of the following form: `{"sample": "package main\nconst Value = 1"}`.
+
+```bash
+python finetune.py \
+    --model-cf model/config/gopilot-290M.yml \
+    --tokenizer-cf tokenizer/config/hugging-face.json \
+    --tokenizer hugging-face \
+    --checkpoint-filepath out/checkpoints/GOP-115-step=6457-loss=2.25.pt \
+    --output-filepath out/checkpoints/finetuned/GOP-115.pt \
+    --dataset-filepath dataset/finetuning/programs-from-descriptions.jsonl \
+    --gradient-accumulation-steps 4 \
+    --batch-size 4 \
+    --dropout 0.1 \
+    --weight-decay 0.1 \
+    --lr 0.000025 \
+    --num-epochs 10 \
+    --precision fp16
+```
+
 ### Inference Server
 
 The inference server is a simple HTTP server that hosts the model and exposes a `/complete` endpoint to submit samples to auto-complete.

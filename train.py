@@ -19,7 +19,6 @@ from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 @dataclass
 class Args:
-    model: str
     model_cf: str
     tokenizer: str
     tokenizer_cf: str
@@ -65,7 +64,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
-    parser.add_argument('--model', type=str, default="Gopilot", help='Name of the model to use.', choices=["gopilot"])
     parser.add_argument('--tokenizer', type=str, default="Gopilot", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
     args, remaining_args = parser.parse_known_args()
     # Training parameters

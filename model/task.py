@@ -11,6 +11,7 @@ from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 import flame
 
 from .model import GopilotModel
+from .sophia import SophiaG
 
 
 class GopilotTask(flame.SimpleTask):
@@ -25,10 +26,13 @@ class GopilotTask(flame.SimpleTask):
         self.scaler = GradScaler() if precision == torch.float16 else None
         self.total_tokens_ingested = 0
         self.estimation_interval = 10
+        # If the optimizer is instance of SophiaG, we need to pass bs=self.batch_size to optimizer step.
+        self.step_dict = {} if not isinstance(optimizer, SophiaG) else {"bs": self.batch_size}
+        self.grad_to_none = False if not isinstance(optimizer, SophiaG) else True
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
         if backprop:
-            self.optimizer.zero_grad(set_to_none=True)
+            self.optimizer.zero_grad(set_to_none=self.grad_to_none)
 
         batch = batch.to(device)
         batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
@@ -78,22 +82,22 @@ class GopilotTask(flame.SimpleTask):
             torch_clip_grad_norm(self.model.parameters(), self.clip_gradients)
 
         if self.scaler:
-            self.scaler.step(self.optimizer, bs=self.batch_size)
+            self.scaler.step(self.optimizer, **self.step_dict)
             self.scaler.update()
         else:
-            self.optimizer.step(bs=self.batch_size) # type: ignore
+            self.optimizer.step(**self.step_dict) # type: ignore
 
         if self.scheduler is not None:
             self.scheduler.step()
 
-        self.optimizer.zero_grad(set_to_none=True)
+        self.optimizer.zero_grad(set_to_none=self.grad_to_none)
 
         num_losses = len(self.step_loss)
         step_loss_value = sum(self.step_loss) / num_losses
         self.step_loss = []
 
         # Update hessian estimate
-        if (step_idx+1) % self.estimation_interval == 0:
+        if (step_idx+1) % self.estimation_interval == 0 and isinstance(self.optimizer, SophiaG):
             self._update_hessian(batch.to(device))
 
         return [

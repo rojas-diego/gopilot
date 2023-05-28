@@ -77,6 +77,12 @@ class GopilotFineTuningDataset(Dataset):
         self.pad_token_id = tokenizer.special_token_to_id("[PAD]")
         self.samples = self._build_samples()
 
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        return self.samples[idx]
+
     def _build_samples(self):
         samples = []
         with open(self.filepath, "r") as f:
