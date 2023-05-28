@@ -131,14 +131,12 @@ if __name__ == '__main__':
             model, # type: ignore
             optimizer,
             pad_token_id=tokenizer.special_token_to_id("[PAD]"),
-            batch_size=tp_args.gradient_accumulation_steps * tp_args.batch_size,
             clip_gradients=tp_args.clip_gradients,
             precision=tp_args.precision
         ),
         run_args.device)
     trainer.register_handlers(
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=run_args.verbose),
-        flame.S3RemoteCheckpointingHandler(s3_args.s3_bucket, f"checkpoints/finetuned/{args.output_filepath}", max_files=3) if s3_args.s3_checkpoints else flame.NoopHandler(),
     )
 
     # Run training
@@ -147,3 +145,6 @@ if __name__ == '__main__':
         train_loader=loader,
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )
+
+    # Save model
+    trainer.task.checkpoint(args.output_filepath, 0, 0, 0, [])

@@ -63,8 +63,8 @@ python finetune.py \
     --checkpoint-filepath out/checkpoints/GOP-115-step=6457-loss=2.25.pt \
     --output-filepath out/checkpoints/finetuned/GOP-115.pt \
     --dataset-filepath dataset/finetuning/programs-from-descriptions.jsonl \
-    --gradient-accumulation-steps 4 \
-    --batch-size 4 \
+    --gradient-accumulation-steps 1 \
+    --batch-size 8 \
     --dropout 0.1 \
     --weight-decay 0.1 \
     --lr 0.000025 \

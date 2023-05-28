@@ -15,11 +15,10 @@ from .sophia import SophiaG
 
 
 class GopilotTask(flame.SimpleTask):
-    def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, batch_size: int, scheduler: Optional[LRScheduler] = None, 
+    def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, scheduler: Optional[LRScheduler] = None, 
                  clip_gradients: Optional[float] = None, precision: torch.dtype = torch.float32):
         super().__init__(model, CrossEntropyLoss(reduction="none"), optimizer, scheduler)
         self.pad_token_id = pad_token_id
-        self.batch_size = batch_size
         self.clip_gradients = clip_gradients
         self.step_loss = []
         self.precision = precision
@@ -27,7 +26,7 @@ class GopilotTask(flame.SimpleTask):
         self.total_tokens_ingested = 0
         self.estimation_interval = 10
         # If the optimizer is instance of SophiaG, we need to pass bs=self.batch_size to optimizer step.
-        self.step_dict = {} if not isinstance(optimizer, SophiaG) else {"bs": self.batch_size}
+        self.step_dict = (lambda bs: {}) if not isinstance(optimizer, SophiaG) else (lambda bs: {"bs": bs})
         self.grad_to_none = False if not isinstance(optimizer, SophiaG) else True
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
@@ -82,10 +81,10 @@ class GopilotTask(flame.SimpleTask):
             torch_clip_grad_norm(self.model.parameters(), self.clip_gradients)
 
         if self.scaler:
-            self.scaler.step(self.optimizer, **self.step_dict)
+            self.scaler.step(self.optimizer, **self.step_dict(batch.size(0)))
             self.scaler.update()
         else:
-            self.optimizer.step(**self.step_dict) # type: ignore
+            self.optimizer.step(**self.step_dict(batch.size(0))) # type: ignore
 
         if self.scheduler is not None:
             self.scheduler.step()

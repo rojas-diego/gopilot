@@ -160,7 +160,6 @@ if __name__ == '__main__':
             model,
             optimizer,
             pad_token_id=tokenizer.special_token_to_id("[PAD]"),
-            batch_size=tp_args.gradient_accumulation_steps * tp_args.batch_size, 
             scheduler=scheduler,
             clip_gradients=tp_args.clip_gradients,
             precision=tp_args.precision
