@@ -155,8 +155,8 @@ if __name__ == '__main__':
         rank=0,
         world_size=1,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, num_workers=1, drop_last=True, pin_memory=run_args.device.type ==
-                        "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", prefetch_factor=32)
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type ==
+                        "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
 
     # Configure trainer
     trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
