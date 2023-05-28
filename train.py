@@ -135,8 +135,8 @@ if __name__ == '__main__':
     total_steps = int(tp_args.token_budget) // tokens_per_batch
     logging.info(
         f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = SophiaG(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay)
-    scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps), final_div_factor=1e3)
+    optimizer = SophiaG(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, rho=0.05)
+    scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps), final_div_factor=25)
 
     # Configure the tracker
     tracker = flame.NeptuneTracker("rojasdiegopro/gopilot") if (flame.neptune_is_available() and run_args.neptune) else flame.NoopTracker()
