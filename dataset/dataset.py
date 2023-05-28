@@ -84,7 +84,12 @@ class GopilotFineTuningDataset(Dataset):
                 sample = eval(line)
                 samples.append(sample)
         # Tokenize and prepare sequences of shape (window_size,)
-
-
-        return samples
-    
+        samples = [self.tokenizer.encode(sample["sample"]) for sample in samples]
+        windowed_samples = []
+        for sample in samples:
+            for i in range(0, len(sample) - self.window_size, self.stride):
+                windowed_sample = sample[i:i+self.window_size] + [self.pad_token_id] * max(self.window_size - len(sample[i:i+self.window_size]), 0)
+                assert len(windowed_sample) == self.window_size
+                windowed_samples.append(torch.tensor(windowed_sample, dtype=torch.long))
+        logging.info(f"Generated {len(windowed_samples)} samples from '{self.filepath}'")
+        return windowed_samples

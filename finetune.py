@@ -6,10 +6,11 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 import flame
 from dataset import GopilotFineTuningDataset
-from model.model import GopilotModel
+from model import GopilotModel, GopilotTask
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 
@@ -128,4 +129,31 @@ if __name__ == '__main__':
         tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
     # Load the dataset
-    dataset = GopilotFineTuningDataset(args.dataset_filepath, tokenizer)
+    dataset = GopilotFineTuningDataset(args.dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length)
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, shuffle=True, num_workers=1)
+
+    # Define optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, eps=tp_args.epsilon, weight_decay=tp_args.weight_decay)
+
+    # Configure trainer
+    trainer = flame.Trainer(
+        GopilotTask(
+            model, # type: ignore
+            optimizer,
+            pad_token_id=tokenizer.special_token_to_id("[PAD]"),
+            batch_size=tp_args.gradient_accumulation_steps * tp_args.batch_size,
+            clip_gradients=tp_args.clip_gradients,
+            precision=tp_args.precision
+        ),
+        run_args.device)
+    trainer.register_handlers(
+        flame.LoggingHandler(on_step=run_args.verbose, on_batch=run_args.verbose),
+        flame.S3RemoteCheckpointingHandler(s3_args.s3_bucket, f"checkpoints/finetuned/{args.output_filepath}", max_files=3) if s3_args.s3_checkpoints else flame.NoopHandler(),
+    )
+
+    # Run training
+    trainer.train(
+        num_epochs=tp_args.num_epochs,
+        train_loader=loader,
+        gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
+    )
