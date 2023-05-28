@@ -10,28 +10,26 @@ from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 
 import flame
 
-from .debug import TrainingSampler
 from .model import GopilotModel
 
 
 class GopilotTask(flame.SimpleTask):
-    def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, scheduler: Optional[LRScheduler] = None, 
-                 clip_gradients: Optional[float] = None, sampler: Optional[TrainingSampler] = None, 
-                 precision: torch.dtype = torch.float32):
+    def __init__(self, model: GopilotModel, optimizer: Optimizer, pad_token_id: int, batch_size: int, scheduler: Optional[LRScheduler] = None, 
+                 clip_gradients: Optional[float] = None, precision: torch.dtype = torch.float32):
         super().__init__(model, CrossEntropyLoss(reduction="none"), optimizer, scheduler)
         self.pad_token_id = pad_token_id
+        self.batch_size = batch_size
         self.clip_gradients = clip_gradients
-        self.sampler = sampler
         self.step_loss = []
         self.precision = precision
         self.scaler = GradScaler() if precision == torch.float16 else None
         self.total_tokens_ingested = 0
+        self.estimation_interval = 10
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
         if backprop:
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
 
-        batch = batch.to(device)
         batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
 
         # Shift the batch by 1 position to create the target batch
@@ -74,26 +72,41 @@ class GopilotTask(flame.SimpleTask):
             flame.Metric("total_tokens_ingested", self.total_tokens_ingested)
         ]
 
-    def step(self, device: torch.device) -> List[flame.Metric]:
+    def step(self, batch: torch.Tensor, device: torch.device, epoch_idx: int, batch_idx: int, step_idx: int) -> List[flame.Metric]:
         if self.clip_gradients is not None:
             torch_clip_grad_norm(self.model.parameters(), self.clip_gradients)
 
         if self.scaler:
-            self.scaler.step(self.optimizer)
+            self.scaler.step(self.optimizer, bs=self.batch_size)
             self.scaler.update()
         else:
-            self.optimizer.step()
+            self.optimizer.step(bs=self.batch_size) # type: ignore
 
         if self.scheduler is not None:
             self.scheduler.step()
 
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
 
         num_losses = len(self.step_loss)
         step_loss_value = sum(self.step_loss) / num_losses
         self.step_loss = []
 
+        # Update hessian estimate
+        if (step_idx+1) % self.estimation_interval == 0:
+            self._update_hessian(batch)
+
         return [
             flame.Metric("loss", step_loss_value),
             flame.Metric("lr", self.optimizer.param_groups[0]["lr"]),
         ]
+
+    def _update_hessian(self, batch: torch.Tensor):
+        inputs = batch[:, :-1]
+        outputs: CausalLMOutputWithCrossAttentions = self.model(inputs)
+        logits = outputs.logits
+        samp_dist = torch.distributions.Categorical(logits=logits)
+        y_sample = samp_dist.sample()
+        loss_sampled = torch.nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), y_sample.reshape(-1))
+        loss_sampled.backward()
+        self.optimizer.update_hessian() # type: ignore
+        self.optimizer.zero_grad(set_to_none=True)

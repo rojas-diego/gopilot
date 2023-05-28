@@ -123,7 +123,7 @@ class Trainer:
             self._callback("on_train_batch_start", epoch_idx, batch_idx, step_idx)
             batch_metrics = self._try_forward(batch, True, epoch_idx, batch_idx, step_idx)
             if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
-                step_metrics = self._try_step(epoch_idx, batch_idx, step_idx)
+                step_metrics = self._try_step(batch, epoch_idx, batch_idx, step_idx)
                 self._callback("on_step", epoch_idx, batch_idx, step_idx, step_metrics)
                 samples.update(step_metrics)
                 step_idx += 1
@@ -173,9 +173,9 @@ class Trainer:
             self._exception()
             raise e
 
-    def _try_step(self, epoch_idx, batch_idx, step_idx: int):
+    def _try_step(self, batch, epoch_idx: int, batch_idx: int, step_idx: int):
         try:
-            return self.task.step(self.device)
+            return self.task.step(batch, self.device, epoch_idx, batch_idx, step_idx)
         except Exception as e:
             logging.error(f"Exception raised during {self.task.__class__.__name__}.step() (epoch={epoch_idx+1}, batch={batch_idx}, step={step_idx}). Attempting graceful exit.")
             self._exception()

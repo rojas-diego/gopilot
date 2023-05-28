@@ -29,7 +29,7 @@ class Task(ABC):
         pass
 
     @abstractmethod
-    def step(self, device: torch.device) -> List[Metric]:
+    def step(self, batch: Any, device: torch.device, epoch_idx: int, batch_idx: int, step_idx: int) -> List[Metric]:
         """Called during training to perform gradient updates."""
         pass
 

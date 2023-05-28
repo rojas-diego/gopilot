@@ -159,7 +159,17 @@ if __name__ == '__main__':
                         "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
 
     # Configure trainer
-    trainer = flame.Trainer(GopilotTask(model, optimizer, tokenizer.special_token_to_id("[PAD]"), scheduler, clip_gradients=tp_args.clip_gradients, precision=tp_args.precision), run_args.device)
+    trainer = flame.Trainer(
+        GopilotTask(
+            model,
+            optimizer,
+            pad_token_id=tokenizer.special_token_to_id("[PAD]"),
+            batch_size=tp_args.gradient_accumulation_steps * tp_args.batch_size, 
+            scheduler=scheduler,
+            clip_gradients=tp_args.clip_gradients,
+            precision=tp_args.precision
+        ),
+        run_args.device)
     trainer.register_handlers(
         flame.CheckpointingHandler(
             run_args.checkpoints_dir,
