@@ -8,13 +8,12 @@ from typing import Union
 
 import numpy as np
 import torch
-from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 
 import flame
 from dataset import DistributedGopilotDataset
-from model import GopilotModel, GopilotTask
+from model import GopilotModel, GopilotTask, SophiaG
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 
@@ -136,7 +135,7 @@ if __name__ == '__main__':
     total_steps = int(tp_args.token_budget) // tokens_per_batch
     logging.info(
         f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, betas=(0.9, 0.999), eps=tp_args.epsilon)  # TODO: betas should be made configurable
+    optimizer = SophiaG(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay)
     scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps), final_div_factor=1e3)
 
     # Configure the tracker

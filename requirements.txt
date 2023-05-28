@@ -38,6 +38,7 @@ neptune==1.0.2
 networkx==3.0rc1
 numpy==1.24.3
 oauthlib==3.2.2
+openai==0.27.7
 packaging==23.1
 pandas==2.0.1
 Pillow==9.5.0

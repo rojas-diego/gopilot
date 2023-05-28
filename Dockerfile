@@ -18,9 +18,11 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && DEBIAN_FRONTEND=
     tmux \
     && rm -rf /var/lib/apt/lists/*
 
+COPY ./requirements.txt ./requirements.txt
+
 # Install the necessary python packages
 RUN pip install --upgrade pip
-RUN pip install datasets==2.12.0 tokenizers==0.13.3 transformers==4.29.1 pandas==2.0.1 pyarrow==10.0.1 neptune==1.0.2 tqdm==4.65.0 boto3==1.26.131
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Golang
 ENV GOLANG_VERSION 1.18.1
