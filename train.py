@@ -4,16 +4,17 @@ import argparse
 import logging
 import random
 from dataclasses import dataclass
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
+from torch.optim import AdamW
 
 import flame
 from dataset import GopilotDataset
-from model import GopilotModel, GopilotTask
+from model import GopilotModel, GopilotTask, SophiaG
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 
@@ -39,6 +40,7 @@ class TrainingParametersArgs:
     precision: Union[str, torch.dtype]
     warmup: int
     seed: int
+    optimizer: Union[Literal["adamw"], Literal["sophiag"]]
 
 
 @dataclass
@@ -79,6 +81,7 @@ if __name__ == '__main__':
     tp_parser.add_argument('--precision', type=str, default="fp16", choices=["fp32", "fp16"], help='Precision to use for training.')
     tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
     tp_parser.add_argument('--warmup', type=int, default=1000, help='Number of warmup steps.')
+    tp_parser.add_argument('--optimizer', type=str, default="adamw", choices=["adamw", "sophiag"], help='Optimizer to use.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
     # S3 arguments
     s3_parser = argparse.ArgumentParser()
@@ -132,7 +135,10 @@ if __name__ == '__main__':
     tokens_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
     total_steps = int(tp_args.token_budget) // tokens_per_batch
     logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay)
+    if tp_args.optimizer == "adamw":
+        optimizer = AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, eps=tp_args.epsilon)
+    else:
+        optimizer = SophiaG(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, rho=0.05)
     scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps), final_div_factor=25)
 
     # Configure the tracker
