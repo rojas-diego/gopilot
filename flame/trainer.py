@@ -119,7 +119,12 @@ class Trainer:
         self.task.train(self.device)
         samples = self._make_progress_bar(self.enable_progress_bar, f"Train Epoch {epoch_idx+1}", self.train_loader)
         step_idx = 0
-        for batch_idx, batch in samples:
+        # Prefetch each batch to avoid blocking the GPU
+        batch_idx, batch = next(samples, (None, None))
+        batch = batch.to(self.device, non_blocking=True) # type: ignore
+        while batch_idx is not None:
+            next_batch_idx, next_batch = next(samples, (None, None))
+            next_batch = next_batch.to(self.device, non_blocking=True) # type: ignore
             self._callback("on_train_batch_start", epoch_idx, batch_idx, step_idx)
             batch_metrics = self._try_forward(batch, True, epoch_idx, batch_idx, step_idx)
             if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
@@ -129,6 +134,7 @@ class Trainer:
                 step_idx += 1
                 self._invoke_checkpointing_callbacks(epoch_idx, batch_idx, step_idx, step_metrics)
             self._callback("on_train_batch_end", epoch_idx, batch_idx, step_idx, batch_metrics)
+            batch_idx, batch = next_batch_idx, next_batch
 
     def _invoke_checkpointing_callbacks(self, epoch_idx: int, batch_idx: int, step_idx: int, step_metrics: List[Metric]):
         for handler in self.handlers:
@@ -241,20 +247,27 @@ class Trainer:
 class NoopProgressBar:
     def __init__(self, iterable):
         self.iterable = iterable
+        self.iterator = iter(iterable)
 
     def __iter__(self):
-        return iter(self.iterable)
+        return self
+
+    def __next__(self):
+        return next(self.iterator)
 
     def update(self, metrics: List[Metric]):
         pass
 
-
 class TQDMProgressBar:
     def __init__(self, iterable):
         self.iterable = iterable
+        self.iterator = iter(iterable)
 
     def __iter__(self):
-        return iter(self.iterable)
+        return self
+
+    def __next__(self):
+        return next(self.iterator)
 
     def update(self, metrics: List[Metric]):
         self.iterable.set_postfix_str(", ".join(f"{metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics), refresh=False)
