@@ -30,9 +30,6 @@ class GopilotTask(flame.SimpleTask):
         self.grad_to_none = False if not isinstance(optimizer, SophiaG) else True
 
     def forward(self, batch: torch.Tensor, device: torch.device, backprop: bool):
-        if backprop:
-            self.optimizer.zero_grad(set_to_none=self.grad_to_none)
-
         batch = batch.to(device)
         batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
 
