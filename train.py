@@ -156,7 +156,7 @@ if __name__ == '__main__':
         window_size=model.get_config().context_length+1,
         stride=model.get_config().context_length,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "", num_workers=1, prefetch_factor=64)
 
     # Configure trainer
     trainer = flame.Trainer(
