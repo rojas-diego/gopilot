@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 import flame
 from dataset import GopilotDataset
-from model import GopilotModel, GopilotTask, SophiaG
+from model import GopilotModel, GopilotTask
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
 
 
@@ -131,9 +131,8 @@ if __name__ == '__main__':
     # Configure optimizer, learning rate scheduler
     tokens_per_batch = tp_args.batch_size * tp_args.gradient_accumulation_steps * (model.get_config().context_length)
     total_steps = int(tp_args.token_budget) // tokens_per_batch
-    logging.info(
-        f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
-    optimizer = SophiaG(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay, rho=0.05)
+    logging.info(f"Compute budget summary: {tp_args.token_budget} tokens, {tokens_per_batch} tokens batch size, {total_steps} total steps, {flame.expected_loss(flame.model_size(model), tp_args.token_budget):.2f} expected loss.")
+    optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, weight_decay=tp_args.weight_decay)
     scheduler = OneCycleLR(optimizer, max_lr=tp_args.lr, total_steps=total_steps, anneal_strategy='cos', pct_start=(tp_args.warmup/total_steps), final_div_factor=25)
 
     # Configure the tracker
@@ -151,8 +150,7 @@ if __name__ == '__main__':
         window_size=model.get_config().context_length+1,
         stride=model.get_config().context_length,
     )
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type ==
-                        "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
+    loader = DataLoader(dataset, batch_size=tp_args.batch_size, drop_last=True, pin_memory=run_args.device.type == "cuda", pin_memory_device="cuda" if run_args.device.type == "cuda" else "")
 
     # Configure trainer
     trainer = flame.Trainer(
