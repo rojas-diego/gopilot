@@ -4,6 +4,8 @@
 # Environment
 .env
 .vscode
+go.mod
+go.sum
 
 # Python
 **/__pycache__
