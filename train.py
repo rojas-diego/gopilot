@@ -71,7 +71,7 @@ def decompose_s3_url(url: str) -> Tuple[str, str, str]:
 
 def download_from_s3(s3_url: str, cache_dir: str):
     bucket, key, filename = decompose_s3_url(s3_url)
-    dest = os.path.join(cache_dir, os.path.basename(filename))
+    dest = os.path.join(cache_dir, os.path.dirname(key))
     os.makedirs(dest, exist_ok=True)
     s3 = boto3.client("s3")
     logging.info(f"Downloading {filename} from s3://{bucket}/{key} to {dest}")
