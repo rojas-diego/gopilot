@@ -86,13 +86,12 @@ class Trainer:
         self._callback("on_test_start")
         metrics_store = MetricsStore()
         with torch.no_grad():
-            samples = self._make_progress_bar(True, "Test", self.test_loader)
+            samples = enumerate(self.test_loader)
             for batch_idx, batch in samples:
                 self._callback("on_test_batch_start", batch_idx)
                 metrics = self._try_forward(batch, False, -1, batch_idx, -1)
                 self._callback("on_test_batch_end", batch_idx, metrics)
                 metrics_store.accumulate(metrics)
-                samples.update(metrics)
         metrics = metrics_store.mean()
         self._callback("on_test_end", metrics)
         return metrics
@@ -117,20 +116,21 @@ class Trainer:
 
     def _train_epoch(self, epoch_idx: int):
         self.task.train(self.device)
-        samples = self._make_progress_bar(self.enable_progress_bar, f"Train Epoch {epoch_idx+1}", self.train_loader)
         step_idx = 0
+        samples = enumerate(self.train_loader)
         # Prefetch each batch to avoid blocking the GPU
         batch_idx, batch = next(samples, (None, None))
-        batch = batch.to(self.device, non_blocking=True) # type: ignore
+        if batch_idx is not None:
+            batch = batch.to(self.device, non_blocking=True) # type: ignore
         while batch_idx is not None:
             next_batch_idx, next_batch = next(samples, (None, None))
-            next_batch = next_batch.to(self.device, non_blocking=True) # type: ignore
+            if next_batch_idx is not None:
+                next_batch = next_batch.to(self.device, non_blocking=True) # type: ignore
             self._callback("on_train_batch_start", epoch_idx, batch_idx, step_idx)
             batch_metrics = self._try_forward(batch, True, epoch_idx, batch_idx, step_idx)
             if (batch_idx + 1) % self.gradient_accumulation_steps == 0:
                 step_metrics = self._try_step(batch, epoch_idx, batch_idx, step_idx)
                 self._callback("on_step", epoch_idx, batch_idx, step_idx, step_metrics)
-                samples.update(step_metrics)
                 step_idx += 1
                 self._invoke_checkpointing_callbacks(epoch_idx, batch_idx, step_idx, step_metrics)
             self._callback("on_train_batch_end", epoch_idx, batch_idx, step_idx, batch_metrics)
@@ -162,13 +162,11 @@ class Trainer:
         self.task.eval(self.device)
         self._callback("on_validation_start", epoch_idx)
         with torch.no_grad():
-            samples = self._make_progress_bar(self.enable_progress_bar, f"Validate Epoch {epoch_idx+1}", self.validation_loader)
-            for batch_idx, batch in samples:
+            for batch_idx, batch in enumerate(self.validation_loader):
                 self._callback("on_validation_batch_start", epoch_idx, batch_idx)
                 metrics = self._try_forward(batch, False, epoch_idx, batch_idx, -1)
                 self._callback("on_validation_batch_end", epoch_idx, batch_idx, metrics)
                 metrics_store.accumulate(metrics)
-                samples.update(metrics)
             self._callback("on_validation_end", epoch_idx, metrics_store.mean())
 
     def _try_forward(self, batch, backprop: bool, epoch_idx, step_idx: int, batch_idx):
@@ -230,44 +228,3 @@ class Trainer:
                     getattr(handler, callback_name)(self, *args, **kwargs)
                 except Exception as e:
                     logging.error(f"Exception raised during {handler.__class__.__name__}.{callback_name}(): {e}. Ignoring.")
-
-    def _make_progress_bar(self, enable_progress_bar: bool, desc: str, loader: Iterable):
-        base = enumerate(loader)
-        if enable_progress_bar:
-            if sys.stdout.isatty():
-                if hasattr(loader, 'dataset'):
-                    if hasattr(loader.dataset, '__len__'):  # type: ignore
-                        return TQDMProgressBar(tqdm.tqdm(base, desc=desc, leave=False, mininterval=0.1, total=len(loader.dataset)))  # type: ignore
-                return TQDMProgressBar(tqdm.tqdm(base, desc=desc, leave=False, mininterval=0.1))
-            else:
-                logging.warning("Progress bar is not supported in non-interactive mode.")
-        return NoopProgressBar(base)
-
-
-class NoopProgressBar:
-    def __init__(self, iterable):
-        self.iterable = iterable
-        self.iterator = iter(iterable)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return next(self.iterator)
-
-    def update(self, metrics: List[Metric]):
-        pass
-
-class TQDMProgressBar:
-    def __init__(self, iterable):
-        self.iterable = iterable
-        self.iterator = iter(iterable)
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return next(self.iterator)
-
-    def update(self, metrics: List[Metric]):
-        self.iterable.set_postfix_str(", ".join(f"{metric.name.capitalize()}: {metric.value:.4f}" for metric in metrics), refresh=False)

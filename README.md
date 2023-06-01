@@ -43,7 +43,7 @@ docker run \
         --optimizer sophiag \
         --batch-size 8 \
         --lr 0.0005 \
-        --token-budget 20000000000 \
+        --token-budget 10000000000 \
         --device cuda \
         --precision fp16 \
         --s3-checkpoints \

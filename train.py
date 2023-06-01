@@ -1,16 +1,17 @@
 # Handles training of the model over the provided dataset.
-
 import argparse
 import logging
+import os
 import random
 from dataclasses import dataclass
-from typing import Literal, Union
+from typing import Literal, Tuple, Union
 
+import boto3
 import numpy as np
 import torch
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
-from torch.optim import AdamW
 
 import flame
 from dataset import GopilotDataset
@@ -23,6 +24,7 @@ class Args:
     model_cf: str
     tokenizer: str
     tokenizer_cf: str
+    from_checkpoint: str
 
 
 @dataclass
@@ -60,6 +62,23 @@ class RunArgs:
     checkpoints_dir: str
 
 
+def decompose_s3_url(url: str) -> Tuple[str, str, str]:
+    url = url.replace("s3://", "")
+    bucket, key = url.split("/", 1)
+    _, filename = key.rsplit("/", 1)
+    return bucket, key, filename
+
+
+def download_from_s3(s3_url: str, cache_dir: str):
+    bucket, key, filename = decompose_s3_url(s3_url)
+    dest = os.path.join(cache_dir, os.path.basename(filename))
+    os.makedirs(dest, exist_ok=True)
+    s3 = boto3.client("s3")
+    logging.info(f"Downloading {filename} from s3://{bucket}/{key} to {dest}")
+    s3.download_file(bucket, key, dest)
+    return dest
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     # General arguments
@@ -67,6 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
     parser.add_argument('--tokenizer', type=str, default="Gopilot", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
+    parser.add_argument('--from-checkpoint', type=str, default=None, help='Path to a checkpoint to load the model from.')
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
@@ -119,6 +139,18 @@ if __name__ == '__main__':
     # Load the model
     model = GopilotModel.from_config_file(args.model_cf, dropout=tp_args.dropout)
     flame.log_model_summary(model)
+
+    if args.from_checkpoint is not None:
+        if args.from_checkpoint.startswith("s3://"):
+            args.from_checkpoint = download_from_s3(args.from_checkpoint, s3_args.s3_cache_dir)
+        assert os.path.exists(args.from_checkpoint), f"Checkpoint {args.from_checkpoint} does not exist."
+        checkpoint = torch.load(args.from_checkpoint, map_location=run_args.device)
+        for key in list(checkpoint['model'].keys()):
+            if key.startswith("_orig_mod."):
+                checkpoint['model'][key[len("_orig_mod."):]] = checkpoint['model'].pop(key)
+        model.load_state_dict(checkpoint['model']) # type: ignore
+        del checkpoint
+        logging.info(f"Loaded model from checkpoint {args.from_checkpoint}.")
 
     # Optionally compile model
     if run_args.compile:
