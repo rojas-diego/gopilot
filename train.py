@@ -65,8 +65,7 @@ class RunArgs:
 def decompose_s3_url(url: str) -> Tuple[str, str, str]:
     url = url.replace("s3://", "")
     bucket, key = url.split("/", 1)
-    _, filename = key.rsplit("/", 1)
-    return bucket, key, filename
+    return bucket, key, os.path.basename(key)
 
 
 def download_from_s3(s3_url: str, cache_dir: str):
