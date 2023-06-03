@@ -6,7 +6,7 @@ from typing import Union
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 import flame
 from dataset import GopilotFineTuningDataset
@@ -19,8 +19,8 @@ class Args:
     model_cf: str
     tokenizer: str
     tokenizer_cf: str
-    checkpoint_filepath: str
-    output_filepath: str
+    in_model_weights: str
+    out_model_weights: str
     dataset_filepath: str
 
 @dataclasses.dataclass
@@ -48,6 +48,50 @@ class RunArgs:
     verbose: bool
 
 
+class EvaluateAtBeginningAndAfterEachEpochHandler:
+    def __init__(self, model: GopilotModel, validation_loader: DataLoader, pad_token_id: int):
+        self.model = model
+        self.validation_loader = validation_loader
+        self.pad_token_id = pad_token_id
+        self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
+
+    def on_train_start(self, trainer: flame.Trainer):
+        trainer.task.eval(trainer.device)
+        self._evaluate(trainer)
+        trainer.task.train(trainer.device)
+
+    def on_epoch_end(self, trainer: flame.Trainer, epoch_idx: int):
+        trainer.task.eval(trainer.device)
+        self._evaluate(trainer)
+        trainer.task.train(trainer.device)
+
+    def _evaluate(self, trainer: flame.Trainer):
+        # Evaluate the validation loss on a portion of the fine-tuning dataset.
+        with torch.no_grad():
+            losses = []
+            for batch_idx, batch in enumerate(self.validation_loader):
+                batch = batch.to(trainer.device)
+                batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
+                inputs = batch[:, :-1]
+                targets = batch[:, 1:]
+                attention_mask = (inputs != self.pad_token_id).long()
+                outputs = self.model(inputs, attention_mask=attention_mask)
+                logits = outputs.logits
+                loss_mask = (targets != self.pad_token_id).float()
+                loss = self.criterion(logits.view(-1, logits.size(-1)), targets.reshape(-1))
+                masked_loss = loss * loss_mask.view(-1)
+                total_loss = torch.sum(masked_loss)
+                num_active_elements = torch.sum(loss_mask)
+                if num_active_elements == 0:
+                    num_active_elements = torch.tensor(1e-8)
+                loss = total_loss / num_active_elements
+                outputs.clear()
+                losses.append(loss.item())
+            logging.info(f"Validation loss: {np.mean(losses)}")
+        # Evaluate HumanEvalX score.
+        # TODO: @LeowWB
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     # General arguments
@@ -55,8 +99,8 @@ if __name__ == '__main__':
     parser.add_argument('--model-cf', type=str, required=True, help='Path to the model configuration file.')
     parser.add_argument('--tokenizer-cf', type=str, required=True, help='Path to the tokenizer configuration file.')
     parser.add_argument('--tokenizer', type=str, default="hugging-face", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
-    parser.add_argument('--checkpoint-filepath', type=str, default=None, help='Path to the checkpoint file.')
-    parser.add_argument('--output-filepath', type=str, default=None, help='Path to the output file.')
+    parser.add_argument('--in-model-weights', type=str, default=None, help='Path to the model weights.')
+    parser.add_argument('--out-model-weights', type=str, default=None, help='Path to which the fine-tuned model weights will be saved.')
     parser.add_argument('--dataset-filepath', type=str, default=None, help='Path to the JSONL dataset file.')
     args, remaining_args = parser.parse_known_args()
     # Training parameters
@@ -106,7 +150,7 @@ if __name__ == '__main__':
     model = GopilotModel.from_config_file(args.model_cf, tp_args.dropout)
     
     # Load model from checkpoint
-    checkpoint = torch.load(args.checkpoint_filepath, map_location=run_args.device)
+    checkpoint = torch.load(args.in_model_weights, map_location=run_args.device)
     for key in list(checkpoint['model'].keys()):
         if key.startswith("_orig_mod."):
             checkpoint['model'][key[len("_orig_mod."):]] = checkpoint['model'].pop(key)
@@ -120,7 +164,16 @@ if __name__ == '__main__':
 
     # Load the dataset
     dataset = GopilotFineTuningDataset(args.dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length)
-    loader = DataLoader(dataset, batch_size=tp_args.batch_size, shuffle=True)
+    train_size = int(0.9 * len(dataset))
+    indices = list(range(len(dataset)))
+    train_indices = indices[:train_size]
+    validation_indices = indices[train_size:]
+    train_dataset = Subset(dataset, train_indices)
+    validation_dataset = Subset(dataset, validation_indices)
+    train_loader = DataLoader(train_dataset, batch_size=tp_args.batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=tp_args.batch_size, shuffle=False)
+
+    logging.info(f"Num train samples: {len(train_dataset)}, num validation samples: {len(validation_dataset)}")
 
     # Define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, eps=tp_args.epsilon, weight_decay=tp_args.weight_decay)
@@ -137,14 +190,20 @@ if __name__ == '__main__':
         run_args.device)
     trainer.register_handlers(
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=run_args.verbose),
+        EvaluateAtBeginningAndAfterEachEpochHandler(
+            model,
+            validation_loader,
+            tokenizer.special_token_to_id("[PAD]"),
+        )
     )
 
     # Run training
     trainer.train(
         num_epochs=tp_args.num_epochs,
-        train_loader=loader,
+        train_loader=train_loader,
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )
 
     # Save model
-    trainer.task.checkpoint(args.output_filepath, 0, 0, 0, [])
+    trainer.task.checkpoint(args.out_model_weights, 0, 0, 0, [])
+    logging.info(f"Model saved to {args.out_model_weights}")
