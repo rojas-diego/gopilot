@@ -108,6 +108,11 @@ def evaluate_model_samples(samples_file='samples.jsonl', test_go_file='testing_t
     if os.path.exists(test_go_file):
         os.remove(test_go_file)
 
+    # pass_count = 0
+    # for k in task_id_pass_counts.keys():
+    #     if task_id_pass_counts[k] > 0:
+    #         pass_count += 1
+
     return task_id_pass_counts
 
 if __name__ == '__main__':

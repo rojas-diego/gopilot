@@ -14,7 +14,7 @@ import flame
 from dataset import GopilotFineTuningDataset
 from model import GopilotModel, GopilotTask
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
-
+import eval
 
 @dataclasses.dataclass
 class Args:
@@ -51,11 +51,12 @@ class RunArgs:
 
 
 class EvaluateAtBeginningAndAfterEachEpochHandler:
-    def __init__(self, model: GopilotModel, loaders: List[Tuple[str, DataLoader]], pad_token_id: int):
+    def __init__(self, model: GopilotModel, loaders: List[Tuple[str, DataLoader]], pad_token_id: int, tokenizer=None):
         self.model = model
         self.loaders = loaders
         self.pad_token_id = pad_token_id
         self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
+        self.tokenizer = tokenizer
 
     def on_train_start(self, trainer: flame.Trainer):
         trainer.task.eval(trainer.device)
@@ -93,8 +94,22 @@ class EvaluateAtBeginningAndAfterEachEpochHandler:
                     losses.append(loss.item())
                 logging.info(f"Validation loss on '{name}': {np.mean(losses)}")
         # Evaluate HumanEvalX score.
-        # TODO: @LeowWB
+        eval.autocomplete_with_model(
+            tok=self.tokenizer,
+            model=self.model,
+            prompt_jsonl_path='dataset/evaluation/humanevalx_go.jsonl',
+            num_beams=100,
+            num_return_sequences=100,
+            max_new_tokens=256,
+            samples_out_file='samples.jsonl'
+        )
 
+        pass_counts = eval.evaluate_model_samples(
+            samples_file='samples.jsonl', 
+            test_go_file='testing_test.go'
+        )
+
+        logging.info(f"humanevalx score: {pass_counts}")
 
 KNOWN_FINE_TUNING_DATASETS = {
     "programs-from-descriptions": "dataset/finetuning/programs-from-descriptions.jsonl",
@@ -223,6 +238,7 @@ if __name__ == '__main__':
             model,
             validation_loaders,
             tokenizer.special_token_to_id("[PAD]"),
+            tokenizer=tokenizer
         )
     )
 
