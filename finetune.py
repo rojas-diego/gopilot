@@ -242,6 +242,13 @@ if __name__ == '__main__':
         )
     )
 
+    def save_weights_atexit():
+        # Save model
+        trainer.task.checkpoint(args.out_model_weights, 0, 0, 0, [])
+        logging.info(f"Model saved to {args.out_model_weights}")
+
+    atexit.register(save_weights_atexit)
+
     # Run training
     trainer.train(
         num_epochs=tp_args.num_epochs,
@@ -249,9 +256,3 @@ if __name__ == '__main__':
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )
 
-    def save_weights_atexit():
-        # Save model
-        trainer.task.checkpoint(args.out_model_weights, 0, 0, 0, [])
-        logging.info(f"Model saved to {args.out_model_weights}")
-
-    atexit.register(save_weights_atexit)
