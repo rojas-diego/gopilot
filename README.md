@@ -61,11 +61,11 @@ python finetune.py \
     --model-cf model/config/gopilot-290M.yml \
     --tokenizer-cf tokenizer/config/hugging-face.json \
     --tokenizer hugging-face \
-    --in-model-weights out/hf.pt \
-    --out-model-weights out/checkpoints/finetuned/GOP-115.pt \
-    --dataset-filepath dataset/finetuning/programs-from-descriptions.jsonl \
+    --in-model-weights hugging-face.pt \
+    --out-model-weights hugging-face-ft.pt \
+    --dataset-filepath programs-from-descriptions \
     --gradient-accumulation-steps 1 \
-    --batch-size 1 \
+    --batch-size 4 \
     --dropout 0.1 \
     --weight-decay 0.1 \
     --lr 0.000025 \

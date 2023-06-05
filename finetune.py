@@ -14,7 +14,7 @@ import flame
 from dataset import GopilotFineTuningDataset
 from model import GopilotModel, GopilotTask
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
-import eval
+from eval import evaluate_humanevalx_pass_at_k
 
 @dataclasses.dataclass
 class Args:
@@ -48,6 +48,7 @@ class S3Args:
 class RunArgs:
     device: Union[str, torch.device]
     verbose: bool
+    neptune: bool
 
 
 class EvaluateAtBeginningAndAfterEachEpochHandler:
@@ -94,22 +95,10 @@ class EvaluateAtBeginningAndAfterEachEpochHandler:
                     losses.append(loss.item())
                 logging.info(f"Validation loss on '{name}': {np.mean(losses)}")
         # Evaluate HumanEvalX score.
-        eval.autocomplete_with_model(
-            tok=self.tokenizer,
-            model=self.model,
-            prompt_jsonl_path='dataset/evaluation/humanevalx_go.jsonl',
-            num_beams=100,
-            num_return_sequences=100,
-            max_new_tokens=256,
-            samples_out_file='samples.jsonl'
-        )
+        results = evaluate_humanevalx_pass_at_k(self.tokenizer, self.model, 100, 256, False)
+        logging.info(f"HumanEvalX pass@100: {results['pass@100']}")
+        logging.info(f"HumanEvalX compile@100: {results['compile@100']}")
 
-        pass_counts = eval.evaluate_model_samples(
-            samples_file='samples.jsonl', 
-            test_go_file='testing_test.go'
-        )
-
-        logging.info(f"humanevalx score: {pass_counts}")
 
 KNOWN_FINE_TUNING_DATASETS = {
     "programs-from-descriptions": "dataset/finetuning/programs-from-descriptions.jsonl",
@@ -165,6 +154,7 @@ if __name__ == '__main__':
     run_parser = argparse.ArgumentParser()
     run_parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cpu", "cuda", "mps"])
     run_parser.add_argument('--verbose', action='store_true', default=True, help='Verbose.')
+    run_parser.add_argument('--neptune', action='store_true', help='Log to Neptune.')
     run_args = run_parser.parse_args(remaining_args)
 
     # Parse args
@@ -222,6 +212,8 @@ if __name__ == '__main__':
     # Define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, eps=tp_args.epsilon, weight_decay=tp_args.weight_decay)
 
+    tracker = flame.NeptuneTracker("rojasdiegopro/gopilot") if (flame.neptune_is_available() and run_args.neptune) else flame.NoopTracker()
+
     # Configure trainer
     trainer = flame.Trainer(
         GopilotTask(
@@ -239,7 +231,8 @@ if __name__ == '__main__':
             validation_loaders,
             tokenizer.special_token_to_id("[PAD]"),
             tokenizer=tokenizer
-        )
+        ),
+        flame.TrackingHandler(tracker),
     )
 
     def save_weights_atexit():

@@ -43,8 +43,11 @@ COPY ./model/ ./model
 COPY ./flame/ ./flame
 COPY ./*.py ./
 
+
 # Build the shared library
+RUN go mod init humanevalx
 RUN go build -o tokenizer/libgotok.so -buildmode=c-shared ./tokenizer/libgotok.go
+RUN go get github.com/stretchr/testify/assert
 
 # Triton leaks 32 bytes on every kernel invocation. The 2.0.0 release has been
 # amended to fix this issue hence we must uninstall and reinstall the package.
