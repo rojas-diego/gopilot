@@ -14,7 +14,7 @@ import flame
 from dataset import GopilotFineTuningDataset
 from model import GopilotModel, GopilotTask
 from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
-from eval import evaluate_humanevalx_pass_at_k
+from evaluate import evaluate_humanevalx_pass_at_k
 
 @dataclasses.dataclass
 class Args:

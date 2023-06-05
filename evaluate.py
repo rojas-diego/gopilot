@@ -18,7 +18,6 @@ from transformers import GenerationConfig
 from tokenizer.tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
 import os
 import os.path
-import re
 
 
 class StopTokensStoppingCriteria(StoppingCriteria):
@@ -99,7 +98,6 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
             num_return_sequences=k,
             stopping_criteria=sc
         )
-        logging.info(f"Generated {outputs.shape} sequences.")
         assert outputs.shape[0] == k, f"outputs.shape: {outputs.shape}"
         candidate_sequences = [candidate_sequence.tolist()[len(prompt_tokens):] for candidate_sequence in outputs]
         assert len(candidate_sequences) == k, f"len(candidate_sequences): {len(candidate_sequences)}"
