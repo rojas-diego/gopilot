@@ -40,27 +40,23 @@ def autocomplete_with_model(tok, model, prompt_jsonl_path='dataset/evaluation/hu
     inputs = [(jd['task_id'], jd['prompt'], jd['test_setup'], jd['test']) for jd in json_data]
 
     sc = StoppingCriteriaList([SC()])
-    json_dicts = []
     
     for task_id, next_prompt, test_setup, test in inputs:
         x = torch.Tensor(tok.encode(next_prompt)).int().unsqueeze(0)
         y = model.generate(x, attention_mask=torch.ones(x.shape), max_new_tokens=max_new_tokens, num_beams=num_beams, num_return_sequences=num_return_sequences, stopping_criteria=sc)
         completions = [tok.decode(list(y_))[len(next_prompt):] for y_ in y]
 
-        for c in completions:
-            json_dicts.append(
-                {
-                    'task_id': task_id,
-                    'prompt': next_prompt,
-                    'completion': c.strip(),
-                    'test_setup': test_setup,
-                    'test': test
-                }
-            )
-
-    with open(samples_out_file, 'w') as f:
-        for jd in json_dicts:
-            f.write(json.dumps(jd) + '\n')
+        with open(samples_out_file, 'a') as f:
+            for c in completions:
+                f.write(json.dumps(
+                    {
+                        'task_id': task_id,
+                        'prompt': next_prompt,
+                        'completion': c.strip(),
+                        'test_setup': test_setup,
+                        'test': test
+                    }
+                ) + '\n')
 
 def _get_imports(string):
     string = string[string.find('import')+6:].strip()
@@ -116,17 +112,17 @@ def evaluate_model_samples(samples_file='samples.jsonl', test_go_file='testing_t
 
 if __name__ == '__main__':
 
-    # gpc = GopilotConfig(context_length=512,
-    #     embedding_dimensions=4,
-    #     num_layers=2,
-    #     num_heads=4,
-    #     feedforward_dimensions=512,
-    #     vocab_size=32768
-    # )
+    gpc = GopilotConfig(context_length=512,
+        embedding_dimensions=4,
+        num_layers=2,
+        num_heads=4,
+        feedforward_dimensions=512,
+        vocab_size=32768
+    )
     
-    # model = GopilotModel(gpc)
-    # tok = HuggingFaceTokenizer.from_file('tokenizer/config/hugging-face.json')
-    # autocomplete_with_model(tok, model, num_beams=2, num_return_sequences=2,max_new_tokens=10)
+    model = GopilotModel(gpc)
+    tok = HuggingFaceTokenizer.from_file('tokenizer/config/hugging-face.json')
+    autocomplete_with_model(tok, model, num_beams=2, num_return_sequences=2,max_new_tokens=10)
 
-    x = evaluate_model_samples('samples.jsonl')
-    print(x)
+    # x = evaluate_model_samples('samples.jsonl')
+    # print(x)
