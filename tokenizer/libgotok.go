@@ -68,6 +68,11 @@ func Scan(byteSequence *C.char) *C.char {
 	// output.
 	results := ScanResult{}
 	for i := 0; i < len(rawResults.IDs); i++ {
+		// If this token is out of bounds, ignore it.
+		if rawResults.Offsets[i].End() > len(sequence) {
+			continue
+		}
+
 		// Sometimes "\n" are returned as token.SEMICOLON tokens
 		if rawResults.IDs[i] == int(token.SEMICOLON) && (rawResults.Offsets[i].Start() >= len(sequence) || sequence[rawResults.Offsets[i].Start()] == '\n') {
 			rawResults.IDs[i] = int(NEWLINE)
