@@ -1,8 +1,9 @@
 import argparse
 import dataclasses
 import logging
+import os
 import random
-from typing import Union
+from typing import List, Tuple, Union
 
 import numpy as np
 import torch
@@ -11,7 +12,7 @@ from torch.utils.data import DataLoader, Subset
 import flame
 from dataset import GopilotFineTuningDataset
 from model import GopilotModel, GopilotTask
-from tokenizer import GopilotTokenizer, HuggingFaceTokenizer
+from tokenizer import GopilotTokenizer, HuggingFaceTokenizer, Tokenizer
 
 
 @dataclasses.dataclass
@@ -49,9 +50,9 @@ class RunArgs:
 
 
 class EvaluateAtBeginningAndAfterEachEpochHandler:
-    def __init__(self, model: GopilotModel, validation_loader: DataLoader, pad_token_id: int):
+    def __init__(self, model: GopilotModel, loaders: List[Tuple[str, DataLoader]], pad_token_id: int):
         self.model = model
-        self.validation_loader = validation_loader
+        self.loaders = loaders
         self.pad_token_id = pad_token_id
         self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
@@ -68,28 +69,50 @@ class EvaluateAtBeginningAndAfterEachEpochHandler:
     def _evaluate(self, trainer: flame.Trainer):
         # Evaluate the validation loss on a portion of the fine-tuning dataset.
         with torch.no_grad():
-            losses = []
-            for batch_idx, batch in enumerate(self.validation_loader):
-                batch = batch.to(trainer.device)
-                batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
-                inputs = batch[:, :-1]
-                targets = batch[:, 1:]
-                attention_mask = (inputs != self.pad_token_id).long()
-                outputs = self.model(inputs, attention_mask=attention_mask)
-                logits = outputs.logits
-                loss_mask = (targets != self.pad_token_id).float()
-                loss = self.criterion(logits.view(-1, logits.size(-1)), targets.reshape(-1))
-                masked_loss = loss * loss_mask.view(-1)
-                total_loss = torch.sum(masked_loss)
-                num_active_elements = torch.sum(loss_mask)
-                if num_active_elements == 0:
-                    num_active_elements = torch.tensor(1e-8)
-                loss = total_loss / num_active_elements
-                outputs.clear()
-                losses.append(loss.item())
-            logging.info(f"Validation loss: {np.mean(losses)}")
+            for (name, loader) in self.loaders:
+                losses = []
+                logging.info(f"Evaluating on '{name}'...")
+                for batch_idx, batch in enumerate(loader):
+                    batch = batch.to(trainer.device)
+                    batch_size, sequence_length = batch.shape[0], batch.shape[1]-1
+                    inputs = batch[:, :-1]
+                    targets = batch[:, 1:]
+                    attention_mask = (inputs != self.pad_token_id).long()
+                    outputs = self.model(inputs, attention_mask=attention_mask)
+                    logits = outputs.logits
+                    loss_mask = (targets != self.pad_token_id).float()
+                    loss = self.criterion(logits.view(-1, logits.size(-1)), targets.reshape(-1))
+                    masked_loss = loss * loss_mask.view(-1)
+                    total_loss = torch.sum(masked_loss)
+                    num_active_elements = torch.sum(loss_mask)
+                    if num_active_elements == 0:
+                        num_active_elements = torch.tensor(1e-8)
+                    loss = total_loss / num_active_elements
+                    outputs.clear()
+                    losses.append(loss.item())
+                logging.info(f"Validation loss on '{name}': {np.mean(losses)}")
         # Evaluate HumanEvalX score.
         # TODO: @LeowWB
+
+
+KNOWN_FINE_TUNING_DATASETS = {
+    "programs-from-descriptions": "dataset/finetuning/programs-from-descriptions.jsonl",
+    "idiomatic-programs": "dataset/finetuning/idiomatic-programs.jsonl",
+    "simple-functions": "dataset/finetuning/simple-functions.jsonl",
+}
+
+
+def determnistic_shuffle_and_split(filepath: str, tokenizer: Tokenizer, window_size: int, stride: int, seed: int, split: float):
+    dataset = GopilotFineTuningDataset(filepath, tokenizer, window_size, stride)
+    random.seed(seed)
+    indices = list(range(len(dataset)))
+    random.shuffle(indices)
+    split_idx = int(len(indices) * split)
+    train_indices = indices[:split_idx]
+    val_indices = indices[split_idx:]
+    train_dataset = Subset(dataset, train_indices)
+    val_dataset = Subset(dataset, val_indices)
+    return train_dataset, val_dataset
 
 
 if __name__ == '__main__':
@@ -101,7 +124,7 @@ if __name__ == '__main__':
     parser.add_argument('--tokenizer', type=str, default="hugging-face", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
     parser.add_argument('--in-model-weights', type=str, default=None, help='Path to the model weights.')
     parser.add_argument('--out-model-weights', type=str, default=None, help='Path to which the fine-tuned model weights will be saved.')
-    parser.add_argument('--dataset-filepath', type=str, default=None, help='Path to the JSONL dataset file.')
+    parser.add_argument('--dataset-filepath', type=str, default=None, help='Path to the JSONL dataset file. Can also specify a known dataset name. (e.g. "programs-from-descriptions")')
     args, remaining_args = parser.parse_known_args()
     # Training parameters
     tp_parser = argparse.ArgumentParser()
@@ -163,17 +186,22 @@ if __name__ == '__main__':
         tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
     # Load the dataset
-    dataset = GopilotFineTuningDataset(args.dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length)
-    train_size = int(0.9 * len(dataset))
-    indices = list(range(len(dataset)))
-    train_indices = indices[:train_size]
-    validation_indices = indices[train_size:]
-    train_dataset = Subset(dataset, train_indices)
-    validation_dataset = Subset(dataset, validation_indices)
-    train_loader = DataLoader(train_dataset, batch_size=tp_args.batch_size, shuffle=True)
-    validation_loader = DataLoader(validation_dataset, batch_size=tp_args.batch_size, shuffle=False)
+    validation_loaders = []
+    if args.dataset_filepath in KNOWN_FINE_TUNING_DATASETS:
+        logging.info(f"Loading known dataset {args.dataset_filepath} from {KNOWN_FINE_TUNING_DATASETS[args.dataset_filepath]}")
+        train_ds, validation_ds = determnistic_shuffle_and_split(KNOWN_FINE_TUNING_DATASETS[args.dataset_filepath], tokenizer, model.get_config().context_length+1, model.get_config().context_length, tp_args.seed, 0.9)
+    else:
+        train_ds, validation_ds = determnistic_shuffle_and_split(args.dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length, tp_args.seed, 0.9)
+    logging.info(f"Using {len(train_ds)} samples for training and {len(validation_ds)} samples for validation")
+    validation_loaders.append((os.path.basename(args.dataset_filepath), DataLoader(validation_ds, batch_size=tp_args.batch_size, shuffle=False)))
 
-    logging.info(f"Num train samples: {len(train_dataset)}, num validation samples: {len(validation_dataset)}")
+    # Add all the known datasets as validation baselines.
+    for dataset_name, dataset_filepath in KNOWN_FINE_TUNING_DATASETS.items():
+        if args.dataset_filepath == dataset_name or dataset_filepath == args.dataset_filepath:
+            continue
+        ds = GopilotFineTuningDataset(dataset_filepath, tokenizer, model.get_config().context_length+1, model.get_config().context_length)
+        logging.info(f"Using known dataset {dataset_filepath} as validation baseline ({len(ds)} samples)")
+        validation_loaders.append((dataset_name, DataLoader(ds, batch_size=tp_args.batch_size, shuffle=False)))
 
     # Define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=tp_args.lr, eps=tp_args.epsilon, weight_decay=tp_args.weight_decay)
@@ -192,7 +220,7 @@ if __name__ == '__main__':
         flame.LoggingHandler(on_step=run_args.verbose, on_batch=run_args.verbose),
         EvaluateAtBeginningAndAfterEachEpochHandler(
             model,
-            validation_loader,
+            validation_loaders,
             tokenizer.special_token_to_id("[PAD]"),
         )
     )
@@ -200,7 +228,7 @@ if __name__ == '__main__':
     # Run training
     trainer.train(
         num_epochs=tp_args.num_epochs,
-        train_loader=train_loader,
+        train_loader=DataLoader(train_ds, batch_size=tp_args.batch_size, shuffle=True),
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )
 
