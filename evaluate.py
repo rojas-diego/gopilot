@@ -105,7 +105,6 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
             assert outputs.shape[0] == k, f"outputs.shape: {outputs.shape}"
             candidate_sequences = [candidate_sequence.tolist()[len(prompt_tokens):] for candidate_sequence in outputs]
             assert len(candidate_sequences) == k, f"len(candidate_sequences): {len(candidate_sequences)}"
-            assert len(candidate_sequences[0]) == max_new_tokens, f"len(candidate_sequences[0]): {len(candidate_sequences[0])}"
             candidate_sequences = [tokenizer.decode(candidate_sequence) for candidate_sequence in candidate_sequences]
             # For each candidate_sequence, we apply the post-processing heuristic,
             # to remove any extra code after the single function definition.
