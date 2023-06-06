@@ -114,7 +114,7 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
     logging.info(f"Evaluating correctness of completions ({len(completions) * k} sequences)")
     for task_id, prompt, test_setup, test, candidate_sequences in completions:
         test_file_contents = test_setup + '\n' + test
-        with open("evaluate_test.go", 'w') as f:
+        with open("evaluate_test.go", "w", encoding="utf-8") as f:
             f.write(test_file_contents)
 
         candidate_sequences_summary = []
@@ -122,7 +122,7 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
         for candidate_id, candidate_sequence in enumerate(candidate_sequences):
             source_file_contents = "package main\n\n" + prompt + candidate_sequence + '\n\nfunc main() {}'
 
-            with open("evaluate.go", "w") as f:
+            with open("evaluate.go", "w", encoding="utf-8") as f:
                 f.write(source_file_contents)
 
             has_passed = False
