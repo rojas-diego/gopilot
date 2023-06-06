@@ -73,6 +73,20 @@ python finetune.py \
     --precision fp16
 ```
 
+### Evaluation
+
+```
+python evaluate.py \
+    --model-cf model/config/gopilot-290M.yml \
+    --tokenizer-cf tokenizer/config/hugging-face.json \
+    --tokenizer hugging-face \
+    --model-weights /checkpoints/hugging-face.pt \
+    --device cuda \
+    --k 10 \
+    --max-new-tokens 128 \
+    --verbose
+```
+
 ### Inference Server
 
 The inference server is a simple HTTP server that hosts the model and exposes a `/complete` endpoint to submit samples to auto-complete.

@@ -203,6 +203,7 @@ if __name__ == '__main__':
         if key.startswith("_orig_mod."):
             checkpoint['model'][key[len("_orig_mod."):]] = checkpoint['model'].pop(key)
     model.load_state_dict(checkpoint['model'])
+    model = model.to(args.device)
 
     # Load the tokenizer
     if args.tokenizer == "gopilot":
