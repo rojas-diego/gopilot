@@ -90,7 +90,13 @@ class GopilotFineTuningDataset(Dataset):
                 sample = eval(line)
                 samples.append(sample)
         # Tokenize and prepare sequences of shape (window_size,)
-        samples = [self.tokenizer.encode(sample["sample"]) for sample in samples]
+        tokenized_samples = []
+        for sample in samples:
+            try:
+                tokenized_samples.append(self.tokenizer.encode(sample["sample"]))
+            except Exception:
+                pass
+        samples = tokenized_samples
         windowed_samples = []
         for sample in samples:
             for i in range(0, len(sample), self.stride):
