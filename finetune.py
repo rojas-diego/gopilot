@@ -106,6 +106,8 @@ KNOWN_FINE_TUNING_DATASETS = {
     "programs-from-descriptions": "dataset/finetuning/programs-from-descriptions.jsonl",
     "idiomatic-programs": "dataset/finetuning/idiomatic-programs.jsonl",
     "simple-functions": "dataset/finetuning/simple-functions.jsonl",
+    "pre-training-subset": "dataset/finetuning/pre-training-subset.jsonl",
+    "all": "dataset/finetuning/all.jsonl",
 }
 
 
@@ -252,4 +254,3 @@ if __name__ == '__main__':
         train_loader=DataLoader(train_ds, batch_size=tp_args.batch_size, shuffle=True),
         gradient_accumulation_steps=tp_args.gradient_accumulation_steps,
     )
-
