@@ -169,6 +169,8 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
     evaluation_summary[f"pass@{k}"] = sum(1 for task in evaluation_summary["tasks"] if task["num_passed"] > 0) / len(evaluation_summary["tasks"])
     evaluation_summary[f"compile@{k}"] = sum(1 for task in evaluation_summary["tasks"] if task["num_compiled"] > 0) / len(evaluation_summary["tasks"])
 
+    logging.info(f"Results: pass@{k} - {evaluation_summary[f'pass@{k}']}, compile@{k} - {evaluation_summary[f'compile@{k}']}")
+
     # Write evaluation summary to a file.
     with open("evaluation_summary.json", 'w') as f:
         f.write(json.dumps(evaluation_summary, indent=4))
