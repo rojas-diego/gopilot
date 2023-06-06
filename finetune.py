@@ -52,12 +52,13 @@ class RunArgs:
 
 
 class EvaluateAtBeginningAndAfterEachEpochHandler:
-    def __init__(self, model: GopilotModel, loaders: List[Tuple[str, DataLoader]], pad_token_id: int, tokenizer=None):
+    def __init__(self, model: GopilotModel, loaders: List[Tuple[str, DataLoader]], pad_token_id: int, tokenizer: Tokenizer, run_humaneval: bool):
         self.model = model
         self.loaders = loaders
         self.pad_token_id = pad_token_id
         self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
         self.tokenizer = tokenizer
+        self.run_humaneval = run_humaneval
 
     def on_train_start(self, trainer: flame.Trainer):
         trainer.task.eval(trainer.device)
@@ -95,9 +96,10 @@ class EvaluateAtBeginningAndAfterEachEpochHandler:
                     losses.append(loss.item())
                 logging.info(f"Validation loss on '{name}': {np.mean(losses)}")
             # Evaluate HumanEvalX score.
-            results = evaluate_humanevalx_pass_at_k(self.tokenizer, self.model, 100, 256, False)
-            logging.info(f"HumanEvalX pass@100: {results['pass@100']}")
-            logging.info(f"HumanEvalX compile@100: {results['compile@100']}")
+            if self.run_humaneval:
+                results = evaluate_humanevalx_pass_at_k(self.tokenizer, self.model, 100, 256, False)
+                logging.info(f"HumanEvalX pass@100: {results['pass@100']}")
+                logging.info(f"HumanEvalX compile@100: {results['compile@100']}")
 
 
 KNOWN_FINE_TUNING_DATASETS = {
@@ -154,7 +156,8 @@ if __name__ == '__main__':
     run_parser = argparse.ArgumentParser()
     run_parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cpu", "cuda", "mps"])
     run_parser.add_argument('--verbose', action='store_true', default=True, help='Verbose.')
-    run_parser.add_argument('--neptune', action='store_true', help='Log to Neptune.')
+    run_parser.add_argument('--neptune', action='store_true', default=False, help='Log to Neptune.')
+    run_parser.add_argument('--run-humaneval', action='store_true', default=False, help='Run HumanEvalX evaluation.')
     run_args = run_parser.parse_args(remaining_args)
 
     # Parse args
@@ -230,7 +233,8 @@ if __name__ == '__main__':
             model,
             validation_loaders,
             tokenizer.special_token_to_id("[PAD]"),
-            tokenizer=tokenizer
+            tokenizer=tokenizer,
+            run_humaneval=run_args.run_humaneval,
         ),
         flame.TrackingHandler(tracker),
     )

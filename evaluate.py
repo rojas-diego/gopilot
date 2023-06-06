@@ -127,12 +127,15 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
 
             has_passed = False
             has_compiled = False
-            completed_process = subprocess.run(["go", "build", "."], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-            if completed_process.returncode == 0:
-                has_compiled = True
-                completed_process = subprocess.run(["go", "test", "."], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            try:
+                completed_process = subprocess.run(["go", "build", "."], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
                 if completed_process.returncode == 0:
-                    has_passed = True
+                    has_compiled = True
+                    completed_process = subprocess.run(["go", "test", "."], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+                    if completed_process.returncode == 0:
+                        has_passed = True
+            except subprocess.TimeoutExpired:
+                logging.info(f"Candidate {candidate_id} timed out")
 
             if verbose:
                 logging.info(f"Task {task_id} | PASS - {has_passed}, COMPILE - {has_compiled}")
