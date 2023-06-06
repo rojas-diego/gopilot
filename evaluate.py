@@ -84,31 +84,35 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
         StopTokensStoppingCriteria(pad_token_id, [tokenizer.special_token_to_id("[EOS]")]),
     ])
 
-    for task_id, next_prompt, test_setup, test in humanevalx_samples:
-        prompt_tokens = tokenizer.encode(next_prompt)
-        constrained_max_new_tokens = min(max_new_tokens, model.get_config().context_length - len(prompt_tokens))
-        inputs = torch.tensor(prompt_tokens).long().unsqueeze(0).to(model.device)
-        outputs: torch.Tensor = model.generate(
-            inputs,
-            pad_token_id=pad_token_id,
-            max_new_tokens=constrained_max_new_tokens,
-            temperature=0.5,
-            do_sample=True,
-            top_k=50,
-            num_return_sequences=k,
-            stopping_criteria=sc
-        )
-        assert outputs.shape[0] == k, f"outputs.shape: {outputs.shape}"
-        candidate_sequences = [candidate_sequence.tolist()[len(prompt_tokens):] for candidate_sequence in outputs]
-        assert len(candidate_sequences) == k, f"len(candidate_sequences): {len(candidate_sequences)}"
-        assert len(candidate_sequences[0]) == max_new_tokens, f"len(candidate_sequences[0]): {len(candidate_sequences[0])}"
-        candidate_sequences = [tokenizer.decode(candidate_sequence) for candidate_sequence in candidate_sequences]
-        # For each candidate_sequence, we apply the post-processing heuristic,
-        # to remove any extra code after the single function definition.
-        candidate_sequences = [post_processing(candidate_sequence) for candidate_sequence in candidate_sequences]
-        completions.append((task_id, next_prompt, test_setup, test, candidate_sequences))
+    logging.info(f"Generating completions for {len(humanevalx_samples)} tasks")
+    with torch.no_grad():
+        for task_id, next_prompt, test_setup, test in humanevalx_samples:
+            if verbose:
+                logging.info(f"Generating completions for task {task_id}")
+            prompt_tokens = tokenizer.encode(next_prompt)
+            constrained_max_new_tokens = min(max_new_tokens, model.get_config().context_length - len(prompt_tokens))
+            inputs = torch.tensor(prompt_tokens).long().unsqueeze(0).to(model.device)
+            outputs: torch.Tensor = model.generate(
+                inputs,
+                pad_token_id=pad_token_id,
+                max_new_tokens=constrained_max_new_tokens,
+                temperature=0.5,
+                do_sample=True,
+                top_k=50,
+                num_return_sequences=k,
+                stopping_criteria=sc
+            )
+            assert outputs.shape[0] == k, f"outputs.shape: {outputs.shape}"
+            candidate_sequences = [candidate_sequence.tolist()[len(prompt_tokens):] for candidate_sequence in outputs]
+            assert len(candidate_sequences) == k, f"len(candidate_sequences): {len(candidate_sequences)}"
+            assert len(candidate_sequences[0]) == max_new_tokens, f"len(candidate_sequences[0]): {len(candidate_sequences[0])}"
+            candidate_sequences = [tokenizer.decode(candidate_sequence) for candidate_sequence in candidate_sequences]
+            # For each candidate_sequence, we apply the post-processing heuristic,
+            # to remove any extra code after the single function definition.
+            candidate_sequences = [post_processing(candidate_sequence) for candidate_sequence in candidate_sequences]
+            completions.append((task_id, next_prompt, test_setup, test, candidate_sequences))
 
-
+    logging.info(f"Evaluating correctness of completions ({len(completions) * k} sequences)")
     for task_id, prompt, test_setup, test, candidate_sequences in completions:
         test_file_contents = test_setup + '\n' + test
         with open("evaluate_test.go", 'w') as f:
@@ -156,7 +160,7 @@ def evaluate_humanevalx_pass_at_k(tokenizer: Tokenizer, model: GopilotModel, k=1
             "num_passed": num_passed,
         })
 
-        logging.info(f"Task {task_id} | PASS@{k} - {num_passed / k} | COMPILE@{k} - {num_compiled / k}")
+        logging.info(f"Task {task_id} | Pass Rate - {num_passed / k} | Compile Rate - {num_compiled / k}")
 
     for file in ["evaluate.go", "evaluate_test.go"]:
         if os.path.exists(file):
@@ -180,6 +184,9 @@ if __name__ == '__main__':
     parser.add_argument('--tokenizer', type=str, default="hugging-face", help='Name of the tokenizer to use.', choices=["gopilot", "hugging-face"])
     parser.add_argument('--model-weights', type=str, default=None, help='Path to the model weights.')
     parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cuda", "cpu", "mps"])
+    parser.add_argument('--k', type=int, default=10, help='Number of completions to generate for each task.')
+    parser.add_argument('--verbose', action='store_true', help='Whether to print verbose logs.')
+    parser.add_argument('--max-new-tokens', type=int, default=128, help='Maximum number of tokens to generate for each completion.')
     args = parser.parse_args()
     
     # Seed for reproducibility
@@ -204,4 +211,4 @@ if __name__ == '__main__':
         tokenizer = HuggingFaceTokenizer.from_file(args.tokenizer_cf)
 
     logging.info(f"Evaluating...")    
-    evaluate_humanevalx_pass_at_k(tokenizer, model, k=3, max_new_tokens=128, verbose=True)
+    evaluate_humanevalx_pass_at_k(tokenizer, model, k=args.k, max_new_tokens=args.max_new_tokens, verbose=args.verbose)

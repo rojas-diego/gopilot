@@ -94,10 +94,10 @@ class EvaluateAtBeginningAndAfterEachEpochHandler:
                     outputs.clear()
                     losses.append(loss.item())
                 logging.info(f"Validation loss on '{name}': {np.mean(losses)}")
-        # Evaluate HumanEvalX score.
-        results = evaluate_humanevalx_pass_at_k(self.tokenizer, self.model, 100, 256, False)
-        logging.info(f"HumanEvalX pass@100: {results['pass@100']}")
-        logging.info(f"HumanEvalX compile@100: {results['compile@100']}")
+            # Evaluate HumanEvalX score.
+            results = evaluate_humanevalx_pass_at_k(self.tokenizer, self.model, 100, 256, False)
+            logging.info(f"HumanEvalX pass@100: {results['pass@100']}")
+            logging.info(f"HumanEvalX compile@100: {results['compile@100']}")
 
 
 KNOWN_FINE_TUNING_DATASETS = {
