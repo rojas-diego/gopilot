@@ -42,9 +42,9 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(4, 2))  # Increase the size as needed
     sns.lineplot(data=df[SMOOTHED_LOSS_COLUMN])
-    plt.xlabel('Steps')
     plt.xlim(left=0, right=df.index.max())
     plt.ylim(args.ylim[0], args.ylim[1])
     plt.ylabel('Loss')
+    plt.xlabel('Steps')
     plt.grid(True)
-    plt.savefig(args.output)
+    plt.savefig(args.output, bbox_inches='tight')
