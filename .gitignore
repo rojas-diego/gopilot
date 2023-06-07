@@ -4,6 +4,7 @@
 # Environment
 .env
 .vscode
+.idea
 go.mod
 go.sum
 
