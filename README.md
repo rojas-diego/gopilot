@@ -127,5 +127,14 @@ Check out the Gopilot VSCode extension [here](https://github.com/rojas-diego/gop
 - **Thank you to Qinkai Zheng** for providing guidance and the hardware resources.
 - We did not check for leakage when performing HumanEvalX evaluation. **Do not include these results in research**.
 - This project was made during the course of **Deep Learning (80240743-0) at Tsinghua University**.
-- While fun to play around with, we do not recommend using a model of this size for code completion in your editor.
+- While fun to play around with, we do not recommend using a model of this size for code completion in your editor. It's a school project!
 - Feel free to use the code, tweak the checkpoints, and all!
+
+## Future Work
+
+- [ ] Release the model weights on HuggingFace
+- [ ] Quantize the model weights for fast inference
+- [ ] Interactive online demo
+- [ ] Try on other languages such as Rust or C++
+- [ ] Experiment with different tokenization strategies
+- [ ] Train for longer on more data
