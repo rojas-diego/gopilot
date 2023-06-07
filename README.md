@@ -20,7 +20,11 @@ Gopilot is a GPT-style Transformer model trained on **20B tokens** on a **single
   <img src="assets/hugging-face-loss-curve.png" width="50%">
 </p>
 
-The pre-training and fine-tuning weights are made available [here](https://working-on-it).
+The pre-training and fine-tuning weights are made available [here](https://gopilot.s3.ap-east-1.amazonaws.com).
+
+```
+aws s3 ls s3://gopilot/checkpoints/ --region ap-east-1
+```
 
 ## Installation
 
