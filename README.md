@@ -91,7 +91,7 @@ python finetune.py \
 
 ### Evaluation
 
-The evaluation script runs evaluation on the HumanEvalX benchmark. Our best model obtains **7.4% `pass@10`** and **77.1% compile@**. Check out the `results` folder for more information.
+The evaluation script runs evaluation on the HumanEvalX benchmark. Our best model obtains **7.4% `pass@10`** and **77.1% compile@10**. Check out the `results` folder for more information.
 
 ```bash
 python evaluate.py \
