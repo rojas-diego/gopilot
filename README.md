@@ -1,8 +1,9 @@
 # 🤖 Gopilot - AI-Assitant for Golang
 
-![](https://img.shields.io/badge/Tsinghua-University-purple)
+![Tsinghua University](https://img.shields.io/badge/Tsinghua-University-purple) ![290M Parameters](https://img.shields.io/badge/Parameters-290M-blue) ![Fine-tuned](https://img.shields.io/badge/Fine--tuned-Yes-success) ![Loss](https://img.shields.io/badge/Loss-1.4-red) ![Task: Code Completion](https://img.shields.io/badge/Task-Code%20Completion-yellow) ![Open-Source](https://img.shields.io/badge/Open-Source-blue)
 
-GoPilot is a **350M parameters** language model trained exclusively on **Go code** using a **small research budget** (~100$).
+
+GoPilot is a **290M parameters** language model trained exclusively on **Go code** using a **small research budget** (~100$).
 
 <p align="center">
   <img src="assets/demo.gif" width="75%">
@@ -119,4 +120,6 @@ Check out the Gopilot VSCode extension [here](https://github.com/rojas-diego/gop
 
 - **Thank you to Qinkai Zheng** for providing guidance and the hardware resources.
 - We did not check for leakage when performing HumanEvalX evaluation. **Do not include these results in research**.
-- This project was made during the course of **Deep Learning (80240743-0) at Tsinghua University**.
+- This project was made during the course of **Deep Learning (80240743-0) at Tsinghua University** by **[@LeowWB](https://github.com/LeowWB)**, **[@jy477274](https://github.com/jy477274)** and myself.
+- While fun to play around with, we do not recommend using a model of this size for code completion in your editor.
+- Feel free to use the code, tweak the checkpoints, and all!
