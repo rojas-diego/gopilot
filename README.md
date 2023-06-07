@@ -10,6 +10,8 @@ GoPilot is a **290M parameters** language model trained exclusively on **Go code
 </p>
 <p align="center"><i>Demo of the Gopilot <a href="https://github.com/rojas-diego/gopilot-vscode-ext">VSCode Code Extension</a></i></p>
 
+<p align="center"><b><a href="https://github.com/rojas-diego">⭐️ Diego Rojas</a></b> <b><a style="margin-left:16px" href="https://github.com/LeowWB">⭐️ Wenbin Leow</a></b> <b><a style="margin-left:16px" href="https://github.com/jy477274">⭐️ Jayden Macdonald</a></b>  <b><a style="margin-left:16px" href="https://github.com/Stanislas0">⭐️ Qinkai Zheng</a></b></p>
+
 ## Overview
 
 Gopilot is a GPT-style Transformer model trained on **20B tokens** on a **single RTX4090 for less than a week** using the Go split of [The Stack Dedup v1.2](https://www.google.com/search?client=safari&rls=en&q=the+stack+dedup+v1.2&ie=UTF-8&oe=UTF-8) dataset. It comes in two flavours: a HuggingFace tokenizer based model and a model based on a custom Go tokenizer that we developped.
@@ -120,6 +122,6 @@ Check out the Gopilot VSCode extension [here](https://github.com/rojas-diego/gop
 
 - **Thank you to Qinkai Zheng** for providing guidance and the hardware resources.
 - We did not check for leakage when performing HumanEvalX evaluation. **Do not include these results in research**.
-- This project was made during the course of **Deep Learning (80240743-0) at Tsinghua University** by **[@LeowWB](https://github.com/LeowWB)**, **[@jy477274](https://github.com/jy477274)** and myself.
+- This project was made during the course of **Deep Learning (80240743-0) at Tsinghua University**.
 - While fun to play around with, we do not recommend using a model of this size for code completion in your editor.
 - Feel free to use the code, tweak the checkpoints, and all!
