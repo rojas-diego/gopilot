@@ -39,16 +39,11 @@ class TrainingParametersArgs:
     seed: int
 
 @dataclasses.dataclass
-class S3Args:
-    s3_bucket: str
-    s3_cache_dir: str
-    s3_checkpoints: bool
-
-@dataclasses.dataclass
 class RunArgs:
     device: Union[str, torch.device]
     verbose: bool
     neptune: bool
+    run_humaneval: bool
 
 
 class EvaluateAtBeginningAndAfterEachEpochHandler:
@@ -148,12 +143,6 @@ if __name__ == '__main__':
     tp_parser.add_argument('--precision', type=str, default="float32", help='Precision.')
     tp_parser.add_argument('--seed', type=int, default=999, help='Random seed.')
     tp_args, remaining_args = tp_parser.parse_known_args(remaining_args)
-    # S3 arguments
-    s3_parser = argparse.ArgumentParser()
-    s3_parser.add_argument('--s3-bucket', type=str, default=None, help='S3 bucket.')
-    s3_parser.add_argument('--s3-cache-dir', type=str, default=None, help='S3 cache directory.')
-    s3_parser.add_argument('--s3-checkpoints', action='store_true', help='Upload checkpoints to S3.')
-    s3_args, remaining_args = s3_parser.parse_known_args(remaining_args)
     # Run arguments
     run_parser = argparse.ArgumentParser()
     run_parser.add_argument('--device', type=str, default="cuda", help='Device to use.', choices=["cpu", "cuda", "mps"])
@@ -165,11 +154,7 @@ if __name__ == '__main__':
     # Parse args
     args = Args(**vars(args))
     tp_args = TrainingParametersArgs(**vars(tp_args))
-    s3_args = S3Args(**vars(s3_args))
     run_args = RunArgs(**vars(run_args))
-
-    # Check S3
-    assert flame.s3_is_available(), "S3 is not available. Please set the relevant environment variables."
 
     # Seed for reproducibility
     torch.manual_seed(tp_args.seed)

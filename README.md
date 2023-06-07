@@ -2,6 +2,10 @@
 
 GoPilot is a small language model trained exclusively on Go code.
 
+<p align="center" width="50%" height="50%">
+  <img src="assets/demo.gif">
+</p>
+
 ## Installation
 
 You need to have `conda` and `go` installed on your machine. You can install the necessary dependencies using `conda` and the provided `environment_cpu.yml` (choose `environment_cuda.yml` when running CUDA).
@@ -62,15 +66,16 @@ python finetune.py \
     --tokenizer-cf tokenizer/config/hugging-face.json \
     --tokenizer hugging-face \
     --in-model-weights /checkpoints/hugging-face.pt \
-    --out-model-weights /checkpoints/hugging-face-ft.pt \
-    --dataset-filepath programs-from-descriptions \
-    --gradient-accumulation-steps 4 \
+    --out-model-weights ../../../../invalid-path/file.pt \
+    --dataset-filepath all \
+    --gradient-accumulation-steps 16 \
     --batch-size 8 \
     --dropout 0.1 \
     --weight-decay 0.1 \
     --lr 0.000025 \
     --num-epochs 10 \
-    --precision fp16
+    --precision fp16 \
+    --neptune
 ```
 
 ### Evaluation
@@ -80,7 +85,7 @@ python evaluate.py \
     --model-cf model/config/gopilot-290M.yml \
     --tokenizer-cf tokenizer/config/hugging-face.json \
     --tokenizer hugging-face \
-    --model-weights /checkpoints/hugging-face.pt \
+    --model-weights /checkpoints/hugging-face-ft.pt \
     --device cuda \
     --k 10 \
     --max-new-tokens 128 \

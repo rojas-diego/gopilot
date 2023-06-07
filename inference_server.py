@@ -57,7 +57,7 @@ def tokenize_file_context(tokenizer: Tokenizer, file_contents: str, cursor_offse
 
 class ModelService:
     """Allows completion tasks to be queued and processed by a model."""
-    def __init__(self, tokenizer: Tokenizer, model: GopilotModel, temperature: float = 1.0, repetition_penalty: float = 1.2, max_length: int = 3):
+    def __init__(self, tokenizer: Tokenizer, model: GopilotModel, temperature: float = 0.3, repetition_penalty: float = 1.2, max_length: int = 3):
         self._model = model
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._tokenizer = tokenizer
@@ -139,7 +139,7 @@ def new_inference_endpoint_handler(model_service: ModelService, tokenizer: Token
                 id=self._new_id(),
                 file_contents=body.get("fileContents"),
                 cursor_offset=body.get("cursorOffset"),
-                max_new_tokens=12,
+                max_new_tokens=24,
                 stopping_tokens=[]
             )
             result = model_service.queue_completion_task(completion_task).result()
