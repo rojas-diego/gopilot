@@ -3,7 +3,7 @@
 GoPilot is a small language model trained exclusively on Go code.
 
 <p align="center">
-  <img src="assets/demo.gif" width="50%">
+  <img src="assets/demo.gif" width="75%">
 </p>
 
 ## Installation
