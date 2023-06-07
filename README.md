@@ -14,7 +14,7 @@ GoPilot is a **290M parameters** language model trained exclusively on **Go code
 
 ## Overview
 
-Gopilot is a GPT-style Transformer model trained on **20B tokens** on a **single RTX4090 for less than a week** using the Go split of [The Stack Dedup v1.2](https://www.google.com/search?client=safari&rls=en&q=the+stack+dedup+v1.2&ie=UTF-8&oe=UTF-8) dataset. It comes in two flavours: a HuggingFace tokenizer based model and a model based on a custom Go tokenizer that we developped.
+Gopilot is a GPT-style Transformer model trained on **20B tokens** on a **single RTX4090 for less than a week** using the Go split of [The Stack Dedup v1.2](https://www.google.com/search?client=safari&rls=en&q=the+stack+dedup+v1.2&ie=UTF-8&oe=UTF-8) dataset. It comes in two flavours: a HuggingFace tokenizer based model and a model based on a custom Go tokenizer that we developed.
 
 <p align="center">
   <img src="assets/hugging-face-loss-curve.png" width="50%">
