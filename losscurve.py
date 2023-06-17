@@ -23,28 +23,33 @@ SMOOTHED_LOSS_COLUMN = "smoothed_loss"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot loss curves from CSV files")
-    parser.add_argument("files", metavar="FILE", type=str, nargs="+", help="CSV files to plot (in order)")
+    parser.add_argument("-a", nargs="+", help="List of files contributing to curve A.")
+    parser.add_argument("-b", nargs="+", help="List of files contributing to curve B.")
     parser.add_argument("--output", "-o", metavar="FILE", type=str, default="losscurve.png", help="Output file (default: losscurve.png)")
     parser.add_argument("--ylim", "-y", metavar="Y", type=float, nargs=2, default=[1, 3], help="Y-axis limits (default: [1, 3])")
     args = parser.parse_args()
 
-    # Read CSV files
+    # Read CSV files for A
     dfs = []
-    for file in args.files:
+    for file in args.a:
         df = pd.read_csv(file, header=None, names=["step", "timestamp", "loss"])
         dfs.append(df)
+    df_a = pd.concat(dfs, ignore_index=True)
+    df_a[SMOOTHED_LOSS_COLUMN] = df_a[LOSS_COLUMN].rolling(window=512).mean()
 
-    # Concatenate dataframes
-    df = pd.concat(dfs, ignore_index=True)
-
-    # Obtain the loss column (third column)
-    df[SMOOTHED_LOSS_COLUMN] = df[LOSS_COLUMN].rolling(window=512).mean()
+    dfs = []
+    for file in args.b:
+        df = pd.read_csv(file, header=None, names=["step", "timestamp", "loss"])
+        dfs.append(df)
+    df_b = pd.concat(dfs, ignore_index=True)
+    df_b[SMOOTHED_LOSS_COLUMN] = df_b[LOSS_COLUMN].rolling(window=512).mean()
 
     plt.figure(figsize=(4, 2))  # Increase the size as needed
-    sns.lineplot(data=df[SMOOTHED_LOSS_COLUMN])
-    plt.xlim(left=0, right=df.index.max())
+    sns.lineplot(data=df_a[SMOOTHED_LOSS_COLUMN], label="Custom-built tokenizer")
+    sns.lineplot(data=df_b[SMOOTHED_LOSS_COLUMN], label="HuggingFace tokenizer")
+    plt.xlim(left=0, right=min(df_a.index.max(), df_b.index.max()))
     plt.ylim(args.ylim[0], args.ylim[1])
     plt.ylabel('Loss')
     plt.xlabel('Steps')
     plt.grid(True)
-    plt.savefig(args.output, bbox_inches='tight')
+    plt.savefig(args.output, dpi=300, bbox_inches='tight')
